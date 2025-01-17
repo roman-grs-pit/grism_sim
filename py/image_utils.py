@@ -19,7 +19,7 @@ def star_postage(mag,detx=2044,dety=2044,offx=0,offy=0,wavelength = 1.5e-6, fov_
     flux = mag2flux(mag)
     return psf[0].data*flux
 
-def add_Roman_header(file_name,fout_name=None,det=1,roman_base_dir='',det='1'):
+def add_Roman_header(file_name,fout_name=None,roman_base_dir='',det='1'):
     if fout_name is None:
         fout_name = file_name
     file = fits.open(file_name) 
