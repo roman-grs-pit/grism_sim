@@ -190,7 +190,7 @@ for i in range(0,len(stars00)):
     spec = star_spec.renorm(mag, "abmag", bp)
     spec.convert("flam")
 
-    print('made it to grism step')
+    #print('made it to grism step')
     # By default, grizli trys to compute a cutout size. This cutout size is not large enough for the roman grism.
     # In 4) FOV0_sims/notebooks/dy-by-optimize.ipynb, I estimate the maximum needed size to be 77 for detector 1.
     # See that notebook for more details
@@ -198,8 +198,8 @@ for i in range(0,len(stars00)):
     roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=77, in_place=True, store=False,
                                is_cgs=True, spectrum_1d=[spec.wave, spec.flux])
     count += 1
-    print(count)
+    #print(count)
 
-plt.imshow(roman.model, vmax=0.2, cmap="hot")
+plt.imshow(roman.model[gpad:-gpad, gpad:-gpad], vmax=0.2, cmap="hot")
 plt.colorbar()
 plt.show()
