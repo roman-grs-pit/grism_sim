@@ -39,10 +39,24 @@ Ntot= len(stars00)
 direct_fits_out = star_image_dir + 'ra0dec0_SCA1.fits'
 direct_fits_out_nopad = star_image_dir + 'ra0dec0_SCA1_nopad.fits'
 nopad_seg = star_image_dir +"seg_nopad.fits"
-empty_seg = star_image_dir +"empty_seg.fits"
-nopad_seg = star_image_dir +"seg_nopad.fits"
-empty_direct = star_image_dir +"empty_direct.fits"
 example_direct = args.roman_2022sim_dir + 'products/FOV0/roll_0/dither_0x_0y/SCA1/GRS_FOV0_roll0_dx0_dy0_SCA1_direct_final.fits'
+
+import grizli.fake_image
+ra, dec = 0, 0
+pa_aper = 128.589
+background = 0.57
+EXPTIME = 301 # 10 ks ~ 4 HST orbits
+NEXP = 1     # divided between 10 exposures
+
+empty_grism = roman_base_dir+'roman_empty_starfield_test.fits'
+h, wcs = grizli.fake_image.roman_header(ra=ra, dec=dec, pa_aper=pa_aper, naxis=(4088,4088))
+head = wcs.to_header()
+grizli.fake_image.make_fake_image(h, output=empty_grism, exptime=EXPTIME, nexp=NEXP,background=background)
+file = fits.open(empty_grism)
+file[1].header["CONFFILE"] = roman_base_dir+"configuration/Roman.det1.07242020.conf" # This had to be a path, not just a filename; otherwise, grizli can't find the sensitivity fits
+file.writeto(empty_grism, overwrite=True)
+file.close()
+
 
 if args.mkdirect == 'y':
 
@@ -79,7 +93,7 @@ if args.mkdirect == 'y':
 	
 	phdu = fits.PrimaryHDU()
 	ihdu = fits.ImageHDU(data=full_image,name='SCI')
-	err_array = np.zeros(full_image.shape)
+	err_array = np.zeros(full_image.shape) #this gets over-written for cut image currently, 0s are bad for grizli if it actually gets used
 	ehdu = fits.ImageHDU(data=err_array,name='ERR')
 	hdul = fits.HDUList([phdu,ihdu,ehdu])
 	hdul[0].header["INSTRUME"] = "ROMAN"
@@ -97,17 +111,17 @@ cut_image = file[1].data[pad:-pad,pad:-pad]
 #plt.imshow(np.log(cut_image+.01))
 #plt.show()
 err = np.random.poisson(10,cut_image.shape)*0.001 #np.zeros(cut_image.shape)
-ihdu = fits.ImageHDU(data=cut_image,name='SCI')
-ehdu = fits.ImageHDU(data=err,name='ERR')
+ihdu = fits.ImageHDU(data=cut_image,name='SCI',header=head)
+ehdu = fits.ImageHDU(data=err,name='ERR',header=head)
 dhdu = fits.ImageHDU(data=np.zeros(cut_image.shape),name='DQ')
 hdul = fits.HDUList([phdu,ihdu,ehdu,dhdu])
-example_file = fits.open(example_direct)
-for ii in range(0,len(hdul)):
-    hdul[ii].header = example_file[ii].header #eventually, we will want real varying WCS
+#example_file = fits.open(example_direct)
+#for ii in range(0,len(hdul)):
+#    hdul[ii].header = example_file[ii].header #eventually, we will want real varying WCS
 
-#hdul[0].header["INSTRUME"] = 'ROMAN   '
+hdul[0].header["INSTRUME"] = 'ROMAN   '
 hdul[0].header["FILTER"] = "f140w"
-#hdul[0].header["EXPTIME"] = 141
+hdul[0].header["EXPTIME"] = 141
 	#hdul[0].header["FILTER"] = "f140w"
 	
 hdul.writeto(direct_fits_out_nopad, overwrite=True)
@@ -123,20 +137,6 @@ hdul.writeto(direct_fits_out_nopad, overwrite=True)
 #Get WCS info correct for ref file and it might work; make padding smaller
 gpad = 100
 
-import grizli.fake_image
-ra, dec = 0, 0
-pa_aper = 128.589
-background = 0.57
-EXPTIME = 301 # 10 ks ~ 4 HST orbits
-NEXP = 1     # divided between 10 exposures
-
-empty_grism = roman_base_dir+'roman_empty_starfield_test.fits'
-h, wcs = grizli.fake_image.roman_header(ra=ra, dec=dec, pa_aper=pa_aper, naxis=(4088,4088))
-grizli.fake_image.make_fake_image(h, output=empty_grism, exptime=EXPTIME, nexp=NEXP,background=background)
-file = fits.open(empty_grism)
-file[1].header["CONFFILE"] = roman_base_dir+"configuration/Roman.det1.07242020.conf" # This had to be a path, not just a filename; otherwise, grizli can't find the sensitivity fits
-file.writeto(empty_grism, overwrite=True)
-file.close()
 
 roman = GrismFLT(grism_file=empty_grism,direct_file=direct_fits_out_nopad, seg_file=None, pad=gpad)
 testf = fits.open(nopad_seg)
@@ -199,7 +199,9 @@ for i in range(0,len(stars00)):
                                is_cgs=True, spectrum_1d=[spec.wave, spec.flux])
     count += 1
     #print(count)
-
-plt.imshow(roman.model[gpad:-gpad, gpad:-gpad], vmax=0.2, cmap="hot")
+if gpad != 0:
+	plt.imshow(roman.model[gpad:-gpad, gpad:-gpad], vmax=0.2, cmap="hot")
+else:
+	plt.imshow(roman.model, vmax=0.2, cmap="hot")
 plt.colorbar()
 plt.show()
