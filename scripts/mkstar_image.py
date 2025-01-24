@@ -1,5 +1,6 @@
 #Usage: create direct image of star field and then simulate a grism image for it
 #Example call: python $github_dir/grism_sim/scripts/mkstar_image.py
+#Requirements: grizli (and all of its dependencies); A clone of the roman-grs-pit star_fields repo in the same relative path
 #Will produce a plot and save the corresponding direct and grism images
 #A successful run should demonstrate that basic Roman GRS simulation capabilities have been installed properly and give one an idea on how to produce more/better simulations
 
