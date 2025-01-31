@@ -1,3 +1,4 @@
+'''
 #Usage: create direct image of star field and then simulate a grism image for it
 #Example call: python $github_dir/grism_sim/scripts/mkstar_image.py
 #Requirements: grizli (and all of its dependencies); A clone of the roman-grs-pit star_fields repo in the same relative path
@@ -5,6 +6,17 @@
 #A successful run should demonstrate that basic Roman GRS simulation capabilities have been installed properly and give one an idea on how to produce more/better simulations
 
 
+
+## Note that when running mkstar_image.py the following error is produced that does not hinder running the script:
+UserWarning: Extinction files not found in /Users/ave_astro/pysyn_cdbs/extinction
+ warnings.warn('Extinction files not found in %s' % (extdir, ))
+UserWarning: No graph or component tables found; functionality will be SEVERELY crippled. No files found for /Users/ave_astro/pysyn_cdbs/mtab/*_tmg.fits
+ warnings.warn('No graph or component tables found; '
+UserWarning: No thermal tables found, no thermal calculations can be performed. No files found for /Users/ave_astro/pysyn_cdbs/mtab/*_tmt.fits
+ warnings.warn('No thermal tables found, '.
+## The extinction and mtab folder can be found here: https://pysynphot.readthedocs.io/en/stable/ but do not seem to be necessary at the moment.
+
+'''
 import numpy as np
 from astropy.io import fits
 from astropy.table import Table
