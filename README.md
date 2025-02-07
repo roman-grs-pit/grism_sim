@@ -26,16 +26,23 @@ pip install ".[test]"
 pip install webbpsf
 
 mkdir /global/cfs/cdirs/m4943/grismsim
+
 export WEBBPSF_PATH="/global/cfs/cdirs/m4943/grismsim/webbpsf-data"
+
 cd $WEBBPSF_PATH
+
 cd .. #otherwise, get double webbpsf-data directory
 
 wget https://stsci.box.com/shared/static/qxpiaxsjwo15ml6m4pkhtk36c9jgj70k.gz #check for updated file here https://webbpsf.readthedocs.io/en/latest/installation.html
+
 mv qxpiaxsjwo15ml6m4pkhtk36c9jgj70k.gz  webbpsf-data-LATEST.tar.gz
+
 tar xzvf webbpsf-data-LATEST.tar.gz
 
 cd /global/common/software/m4943/grizli0
+
 git clone https://github.com/roman-grs-pit/grism_sim.git
+
 git clone https://github.com/roman-grs-pit/star_fields.git
 
 conda install pysynphot
