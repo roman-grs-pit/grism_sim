@@ -1,6 +1,7 @@
 scripts and helper utilities to simulate Roman grism images
 
 NERSC install
+
 module load conda
 conda create --prefix /global/common/software/m4943/grizli0 python=3.9
 conda activate /global/common/software/m4943/grizli0
