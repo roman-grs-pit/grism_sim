@@ -3,10 +3,15 @@ scripts and helper utilities to simulate Roman grism images
 NERSC install
 
 module load conda
+
 conda create --prefix /global/common/software/m4943/grizli0 python=3.9
+
 conda activate /global/common/software/m4943/grizli0
+
 conda install numpy scipy astropy
+
 cd /global/common/software/m4943/grizli0
+
 pip install -e .
 
 
@@ -19,6 +24,7 @@ basemap 1.3.2 requires numpy<1.23,>=1.21; python_version >= "3.7", but you have 
 pip install ".[test]"
 
 pip install webbpsf
+
 mkdir /global/cfs/cdirs/m4943/grismsim
 export WEBBPSF_PATH="/global/cfs/cdirs/m4943/grismsim/webbpsf-data"
 cd $WEBBPSF_PATH
