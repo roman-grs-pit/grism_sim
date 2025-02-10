@@ -87,6 +87,7 @@ file.close()
 
 if args.mkdirect == 'y':
     #This takes ~6 minutes and is by far the greatest processing time
+    #The time is dominated by calculating the PSF for each object...should switch to using  a grid: https://webbpsf.readthedocs.io/en/latest/psf_grids.html
     #If you see obvious ways to speed it up, please test their implementation and make PR!
 	full_image = np.zeros((4088+2*pad,4088+2*pad))
 	full_seg = np.zeros((4088+2*pad,4088+2*pad),dtype=int)
