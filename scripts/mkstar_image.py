@@ -36,7 +36,8 @@ parser.add_argument("--mkdirect", help="whether to make the direct image or not"
 parser.add_argument("--checkseg", help="check whether segmentation maps lines up properly",default='n')
 
 parser.add_argument("--github_dir",help="path to directory where Roman GRS PIT github repos have been cloned; assumes it is the same for all",default=os.getenv('github_dir'))
-parser.add_argument("--star_image_dir", help="directory to save star image files",default=os.getenv('star_image_dir'))
+parser.add_argument("--star_image_dir", help="directory to save star image and grism files",default=os.getenv('star_image_dir'))
+parser.add_argument("--out_fn", help="output file name, written to star_image_dir",default='grism_test.fits')
 parser.add_argument("--pad", help="padding in pixels to add to image",default=365,type=int)
 #These were used at first but should not be necessary, keeping for future debugging
 #parser.add_argument("--input_star_fn", help="full path to file containing info on stars to simulate",default=os.getenv('github_dir')+'star_fields/py/stars_radec00.ecsv')
@@ -212,9 +213,30 @@ for i in range(0,len(stars00)):
                                is_cgs=True, spectrum_1d=[spec.wave, spec.flux])
     count += 1
     #print(count)
+
+print(roman.model.shape)
+
 if gpad != 0:
 	plt.imshow(roman.model[gpad:-gpad, gpad:-gpad], vmax=0.2, cmap="hot")
 else:
 	plt.imshow(roman.model, vmax=0.2, cmap="hot")
 plt.colorbar()
 plt.show()
+
+
+
+#save grism model image + noise
+out_fn = args.star_image_dir+args.out_fn
+hdu_list = fits.open(empty_grism)
+if gpad != 0:
+    hdu_list.append(fits.ImageHDU(data=roman.model[gpad:-gpad, gpad:-gpad],name='MODEL'))
+    #hdu_list.append(fits.ImageHDU(data=roman.grism.data['SCI'][gpad:-gpad, gpad:-gpad],name='ERR'))
+    hdu_list['ERR'].data = roman.grism.data['SCI'][gpad:-gpad, gpad:-gpad]
+else:
+    hdu_list.append(fits.ImageHDU(data=roman.model,name='MODEL'))
+    #hdu_list.append(fits.ImageHDU(data=roman.grism.data['SCI']),name='ERR')
+    hdu_list['ERR'].data = roman.grism.data['SCI']
+
+hdu_list.writeto(out_fn, overwrite=True)
+hdu_list.close()
+print('wrote to '+out_fn)
