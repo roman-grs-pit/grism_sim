@@ -66,7 +66,7 @@ git clone https://github.com/roman-grs-pit/grism_sim.git
 
 git clone https://github.com/roman-grs-pit/star_fields.git
 
-conda install pysynphot
+conda install pysynphot (other machines might need pip install pysynphot instead)
 
 PYTHONPATH=$PYTHONPATH:/global/common/software/m4943/grizli0/grism_sim/py
 ```
