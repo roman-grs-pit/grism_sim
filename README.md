@@ -1,6 +1,16 @@
 scripts and helper utilities to simulate Roman grism images
 
-NERSC install
+Given NERSC install, hopefully the following is all that is needed for anyone in the roman group 
+
+module load conda
+
+conda activate /global/common/software/m4943/grizli0
+
+PYTHONPATH=$PYTHONPATH:/global/common/software/m4943/grizli0/grism_sim/py
+
+export WEBBPSF_PATH="/global/cfs/cdirs/m4943/grismsim/webbpsf-data"
+
+Full NERSC install
 
 module load conda
 
