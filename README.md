@@ -26,6 +26,10 @@ conda install numpy scipy astropy
 
 cd /global/common/software/m4943/grizli0
 
+git clone https://github.com/roman-grs-pit/grizli.git
+
+cd grizli
+
 pip install -e .
 ```
 
