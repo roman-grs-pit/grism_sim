@@ -20,7 +20,7 @@ UserWarning: No thermal tables found, no thermal calculations can be performed. 
 import numpy as np
 from astropy.io import fits
 from astropy.table import Table
-import os
+import os, sys
 import matplotlib.pyplot as plt
 # Spectra tools
 import pysynphot as S
@@ -32,13 +32,15 @@ import image_utils as iu
 
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("--mkdirect", help="whether to make the direct image or not",default='y')
-parser.add_argument("--checkseg", help="check whether segmentation maps lines up properly",default='n')
+parser.add_argument("--mkdirect", help="whether to make the direct image or not", default='y')
+parser.add_argument("--checkseg", help="check whether segmentation maps lines up properly", default='n')
 
-parser.add_argument("--github_dir",help="path to directory where Roman GRS PIT github repos have been cloned; assumes it is the same for all",default=os.getenv('github_dir'))
-parser.add_argument("--star_image_dir", help="directory to save star image and grism files",default=os.getenv('star_image_dir'))
-parser.add_argument("--out_fn", help="output file name, written to star_image_dir",default='grism_test.fits')
-parser.add_argument("--pad", help="padding in pixels to add to image",default=365,type=int)
+parser.add_argument("--github_dir", help="path to directory where Roman GRS PIT github repos have been cloned; assumes it is the same for all", default=os.getenv('github_dir'))
+parser.add_argument("--star_image_dir", help="directory to save star image and grism files", default=os.getenv('star_image_dir'))
+parser.add_argument("--out_fn", help="output file name, written to star_image_dir", default='grism_test.fits')
+# might need to make this a prefix if we want to propagate the SCA informations
+parser.add_argument("--pad", help="padding in pixels to add to image", default=365, type=int)
+parser.add_argument("--det", help="detector to simulate", default=1, type=int)
 #These were used at first but should not be necessary, keeping for future debugging
 #parser.add_argument("--input_star_fn", help="full path to file containing info on stars to simulate",default=os.getenv('github_dir')+'star_fields/py/stars_radec00.ecsv')
 #parser.add_argument("--roman_base_dir", help="base directory for roman calibration files",default=os.getenv('roman_base_dir'))
@@ -49,8 +51,26 @@ args = parser.parse_args()
 
 #roman_base_dir = args.roman_base_dir
 star_image_dir = args.star_image_dir
-github_dir=args.github_dir
-input_star_fn = github_dir+'star_fields/py/stars_radec00.ecsv' #this was produced by the script in star_fields
+github_dir = args.github_dir
+det_num = args.det
+
+det = "SCA%i" % (det_num)
+
+if not github_dir:
+    print()
+    print("MISSING github_dir! The github_dir needs to be set as an environmental variable or with the argument --github_dir")
+    print()
+    parser.print_help(sys.stderr)
+    sys.exit(1)
+
+if not star_image_dir:
+    print()
+    print("MISSING star_image_dir! The github_dir needs to be set as an environmental variable or with the argument --star_image_dir")
+    print()
+    parser.print_help(sys.stderr)
+    sys.exit(1)
+
+input_star_fn = os.path.join(github_dir, 'star_fields/py/stars_radec00.ecsv') #this was produced by the script in star_fields
 pad = args.pad
 
 stars00 = Table.read(input_star_fn)
@@ -61,9 +81,11 @@ print(np.min(stars00['Xpos'] ),np.min(stars00['Ypos']))
 stars00 = stars00[sel_ondet]
 Ntot= len(stars00)
 
-direct_fits_out = star_image_dir + 'ra0dec0_SCA1.fits'
-direct_fits_out_nopad = star_image_dir + 'ra0dec0_SCA1_nopad.fits'
-nopad_seg = star_image_dir +"seg_nopad.fits"
+#direct_fits_out = os.path.join(star_image_dir, 'ra0dec0_SCA1.fits')
+#direct_fits_out_nopad = os.path.join(star_image_dir ,'ra0dec0_SCA1_nopad.fits')
+direct_fits_out = os.path.join(star_image_dir, 'ra0dec0_%s.fits' % (det))
+direct_fits_out_nopad = os.path.join(star_image_dir ,'ra0dec0_%s_nopad.fits' % (det))
+nopad_seg = os.path.join(star_image_dir, "seg_nopad.fits")
 #example_direct = args.roman_2022sim_dir + 'products/FOV0/roll_0/dither_0x_0y/SCA1/GRS_FOV0_roll0_dx0_dy0_SCA1_direct_final.fits'
 
 #this ends up setting the background noise and defines the WCS
@@ -75,12 +97,13 @@ EXPTIME = 301
 NEXP = 1     
 
 #empty_grism = roman_base_dir+'roman_empty_starfield_test.fits'
-empty_grism = star_image_dir+'roman_empty_starfield_test.fits'
+empty_grism = os.path.join(star_image_dir, 'roman_empty_starfield_test.fits')
 h, wcs = grizli.fake_image.roman_header(ra=ra, dec=dec, pa_aper=pa_aper, naxis=(4088,4088))
 head = wcs.to_header()
-grizli.fake_image.make_fake_image(h, output=empty_grism, exptime=EXPTIME, nexp=NEXP,background=background)
+grizli.fake_image.make_fake_image(h, output=empty_grism, exptime=EXPTIME, nexp=NEXP, background=background)
 file = fits.open(empty_grism)
-file[1].header["CONFFILE"] = github_dir+"grism_sim/data/Roman.det1.07242020.conf"#roman_base_dir+"configuration/Roman.det1.07242020.conf" # This had to be a path, not just a filename; otherwise, grizli can't find the sensitivity fits
+#file[1].header["CONFFILE"] = os.path.join(github_dir, "grism_sim/data/Roman.det1.07242020.conf") #roman_base_dir+"configuration/Roman.det1.07242020.conf" # This had to be a path, not just a filename; otherwise, grizli can't find the sensitivity fits
+file[1].header["CONFFILE"] = os.path.join(github_dir, "grism_sim/data/Roman.det%i.07242020.conf" % (det_num))
 file.writeto(empty_grism, overwrite=True)
 file.close()
 
@@ -176,14 +199,14 @@ roman.seg = padded_masked_seg.astype("float32")
 # Create F158 Filter Bandpass object
 
 #df = Table.read(os.path.join(SED_dir, "wfirst_wfi_f158_001_syn.fits"), format='fits') #close to H-band
-df = Table.read(github_dir+'/grism_sim/data/wfirst_wfi_f158_001_syn.fits', format='fits') #close to H-band
+df = Table.read(os.path.join(github_dir, 'grism_sim/data/wfirst_wfi_f158_001_syn.fits'), format='fits') #close to H-band
 bp = S.ArrayBandpass(df["WAVELENGTH"], df["THROUGHPUT"])
 
 minlam = 1e4
-maxlam=2e4
+maxlam = 2e4
 
-tempdir = github_dir+'star_fields/data/SEDtemplates/'
-templates = open(github_dir+'star_fields/data/SEDtemplates/input_spectral_STARS.lis').readlines()
+tempdir = os.path.join(github_dir, 'star_fields/data/SEDtemplates/')
+templates = open(os.path.join(github_dir, 'star_fields/data/SEDtemplates/input_spectral_STARS.lis')).readlines()
 temp_inds = stars00['star_template_index'] - 58*(stars00['star_template_index']//58)
 
 count = 0
@@ -195,7 +218,7 @@ for i in range(0,len(stars00)):
     temp_ind = int(temp_inds[i])
     #print(temp_ind)
     star_type = templates[temp_ind].strip('\n')
-    temp = np.loadtxt(tempdir+star_type).transpose()
+    temp = np.loadtxt(os.path.join(tempdir, star_type)).transpose()
     wave = temp[0]
     sel = wave > minlam
     sel &= wave < maxlam
@@ -227,7 +250,7 @@ plt.show()
 
 
 #save grism model image + noise
-out_fn = args.star_image_dir+args.out_fn
+out_fn = os.path.join(args.star_image_dir, args.out_fn)
 hdu_list = fits.open(empty_grism)
 if gpad != 0:
     hdu_list.append(fits.ImageHDU(data=roman.model[gpad:-gpad, gpad:-gpad],name='MODEL'))
