@@ -1,0 +1,36 @@
+detector_size: 4088
+minlam: 10000 # Angstroms
+maxlam: 20000 # Angstroms
+grism_background: 0.57 # counts/sec
+
+pad: 800 # Pad chosen to be >one full trace dx
+# The pad does not seem to have a large impact on compute times.
+# It only needs to be larger than one full trace in x. It can be defined seperately in the x and y.
+
+fov_pixels: 182 # Star/PSF size
+npsfs: 20 # Number of PSFs
+spectrum_overlap: 10 # Extent of overlap between PSFs in Angstroms (roll-on/off)
+
+# The below values have need to be corrected:
+# 1) Different methods for determining max dy return different results
+# 2) These sizes do not account for size of objects, but only for maximum dy on the detector
+# These sizes do have a significant impact on compute times and should be minimized as much as possible.
+size: 
+ SCA1: 77
+ SCA2: 80
+ SCA3: 88
+ SCA4: 180
+ SCA5: 195
+ SCA6: 209
+ SCA7: 279
+ SAC8: 302
+ SCA9: 328
+ SCA10: 98
+ SCA11: 101
+ SCA12: 110
+ SCA13: 203
+ SCA14: 217
+ SCA15: 232
+ SCA16: 303
+ SCA17: 326
+ SCA18: 353
