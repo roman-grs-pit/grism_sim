@@ -30,6 +30,8 @@ from grizli.model import GrismFLT
 
 import image_utils as iu
 
+import yaml
+
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--mkdirect", help="whether to make the direct image or not", default='y')
@@ -70,6 +72,10 @@ if not star_image_dir:
     parser.print_help(sys.stderr)
     sys.exit(1)
 
+conf_file = os.path.join(github_dir, "grism_sim/data/grizli_config.yaml")
+with open(conf_file) as f:
+	grizli_conf = yaml.safe_load(f)
+
 input_star_fn = os.path.join(github_dir, 'star_fields/py/stars_radec00.ecsv') #this was produced by the script in star_fields
 pad = args.pad
 
@@ -92,7 +98,7 @@ nopad_seg = os.path.join(star_image_dir, "seg_nopad.fits")
 import grizli.fake_image
 ra, dec = 0, 0
 pa_aper = 128.589
-background = 0.57
+background = grizli_conf["grism_background"]
 EXPTIME = 301 
 NEXP = 1     
 
@@ -174,8 +180,8 @@ hdul[0].header["EXPTIME"] = 141
 	
 hdul.writeto(direct_fits_out_nopad, overwrite=True)
 
-gpad = 100
-
+gpad = grizli_conf["pad"]
+size = grizli_conf["size"][det]
 
 roman = GrismFLT(grism_file=empty_grism,direct_file=direct_fits_out_nopad, seg_file=None, pad=gpad)
 testf = fits.open(nopad_seg)
@@ -202,8 +208,8 @@ roman.seg = padded_masked_seg.astype("float32")
 df = Table.read(os.path.join(github_dir, 'grism_sim/data/wfirst_wfi_f158_001_syn.fits'), format='fits') #close to H-band
 bp = S.ArrayBandpass(df["WAVELENGTH"], df["THROUGHPUT"])
 
-minlam = 1e4
-maxlam = 2e4
+minlam = grizli_conf["minlam"]
+maxlam = grizli_conf["maxlam"]
 
 tempdir = os.path.join(github_dir, 'star_fields/data/SEDtemplates/')
 templates = open(os.path.join(github_dir, 'star_fields/data/SEDtemplates/input_spectral_STARS.lis')).readlines()
@@ -230,10 +236,8 @@ for i in range(0,len(stars00)):
     spec.convert("flam")
 
     #print('made it to grism step')
-    # By default, grizli trys to compute a cutout size. This cutout size is not large enough for the roman grism.
-    # In 4) FOV0_sims/notebooks/dy-by-optimize.ipynb, I estimate the maximum needed size to be 77 for detector 1.
-    # See that notebook for more details
-    roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=77, in_place=True, store=False,
+    # size is read in from grizli_config.yaml above
+    roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=True, store=False,
                                is_cgs=True, spectrum_1d=[spec.wave, spec.flux])
     count += 1
     #print(count)
