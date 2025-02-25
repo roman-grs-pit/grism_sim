@@ -35,6 +35,7 @@ import yaml
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--mkdirect", help="whether to make the direct image or not", default='y')
+parser.add_argument("--fast_direct", help="if y, a single PSF is used over the whole detector when making the direct image", default='y')
 parser.add_argument("--checkseg", help="check whether segmentation maps lines up properly", default='n')
 
 parser.add_argument("--github_dir", help="path to directory where Roman GRS PIT github repos have been cloned; assumes it is the same for all", default=os.getenv('github_dir'))
@@ -77,7 +78,16 @@ with open(conf_file) as f:
 	grizli_conf = yaml.safe_load(f)
 
 input_star_fn = os.path.join(github_dir, 'star_fields/py/stars_radec00.ecsv') #this was produced by the script in star_fields
-pad = args.pad
+
+pad = args.pad #user supplied padding, most relevant for input direct image
+gpad = grizli_conf["pad"] #grism padding needed based on configuration yaml
+#we will make padding equal to the greater of the two
+if pad > gpad:
+    gpad = pad
+else:
+    pad = gpad
+print('the padding used throughout is '+str(pad))
+
 
 stars00 = Table.read(input_star_fn)
 sel_ondet = stars00['Xpos'] < 4088
@@ -92,6 +102,7 @@ Ntot= len(stars00)
 direct_fits_out = os.path.join(star_image_dir, 'ra0dec0_%s.fits' % (det))
 direct_fits_out_nopad = os.path.join(star_image_dir ,'ra0dec0_%s_nopad.fits' % (det))
 nopad_seg = os.path.join(star_image_dir, "seg_nopad.fits")
+pad_seg = os.path.join(star_image_dir, "seg_wpad.fits")
 #example_direct = args.roman_2022sim_dir + 'products/FOV0/roll_0/dither_0x_0y/SCA1/GRS_FOV0_roll0_dx0_dy0_SCA1_direct_final.fits'
 
 #this ends up setting the background noise and defines the WCS
@@ -122,6 +133,8 @@ if args.mkdirect == 'y':
 	full_seg = np.zeros((4088+2*pad,4088+2*pad),dtype=int)
 	thresh = 0.01 #threshold flux for segmentation map
 	N = 0
+	if args.fast_direct == 'y':
+	    fid_psf = iu.get_psf(fov_pixels=pad-1)
 	#stars00 = Table.read(args.input_star_fn)
 	for i in range(0,len(stars00)):
 		xpos = stars00[i]['Xpos']
@@ -133,7 +146,10 @@ if args.mkdirect == 'y':
 		yp = int(ypos)
 		xoff = 0#xpos-xp
 		yoff = 0#ypos-yp
-		sp = iu.star_postage(mag,xpos,ypos,xoff,yoff,fov_pixels=pad-1)
+		if args.fast_direct == 'y':
+		    sp = iu.star_postage_inpsf(mag,fid_psf)
+		else:
+		    sp = iu.star_postage(mag,xpos,ypos,xoff,yoff,fov_pixels=pad-1)
 		fov_pixels = pad-1
 		full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
 		selseg = sp > thresh
@@ -162,10 +178,13 @@ if args.mkdirect == 'y':
 	hdu = fits.PrimaryHDU(data=full_seg[pad:-pad,pad:-pad])
 	hdul = fits.HDUList([hdu])
 	hdu.writeto(nopad_seg, overwrite=True)
+	hdu = fits.PrimaryHDU(data=full_seg)
+	hdul = fits.HDUList([hdu])
+	hdu.writeto(pad_seg, overwrite=True)
 
 file = fits.open(direct_fits_out)
 phdu = fits.PrimaryHDU()
-cut_image = file[1].data[pad:-pad,pad:-pad]
+cut_image = file[1].data#[pad:-pad,pad:-pad]
 #plt.imshow(np.log(cut_image+.01))
 #plt.show()
 err = np.random.poisson(10,cut_image.shape)*0.001 #np.zeros(cut_image.shape)
@@ -178,13 +197,18 @@ hdul[0].header["INSTRUME"] = 'ROMAN   '
 hdul[0].header["FILTER"] = "f140w"
 hdul[0].header["EXPTIME"] = 141
 	
-hdul.writeto(direct_fits_out_nopad, overwrite=True)
+#hdul.writeto(direct_fits_out_nopad, overwrite=True)
+hdul.writeto(direct_fits_out, overwrite=True)
 
-gpad = grizli_conf["pad"]
+
 size = grizli_conf["size"][det]
 
 roman = GrismFLT(grism_file=empty_grism,direct_file=direct_fits_out_nopad, seg_file=None, pad=gpad)
 testf = fits.open(nopad_seg)
+#roman = GrismFLT(grism_file=empty_grism,direct_file=direct_fits_out_nopad, seg_file=None, pad=gpad)
+#testf = fits.open(pad_seg)
+
+
 masked_seg = testf[0].data
 #print('number of unique values in segmentation map '+str(len(np.unique(masked_seg))),np.min(masked_seg),np.max(masked_seg))
 if args.checkseg == 'y':
@@ -197,6 +221,8 @@ if args.checkseg == 'y':
 
 padded_masked_seg = np.pad(masked_seg, [gpad, gpad], mode='constant')
 roman.seg = padded_masked_seg.astype("float32")
+
+#roman.seg = masked_seg.astype("float32")
 
 #print('added segmentation map')
 
@@ -237,6 +263,7 @@ for i in range(0,len(stars00)):
 
     #print('made it to grism step')
     # size is read in from grizli_config.yaml above
+    #print(row)
     roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=True, store=False,
                                is_cgs=True, spectrum_1d=[spec.wave, spec.flux])
     count += 1

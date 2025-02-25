@@ -3,7 +3,8 @@ import webbpsf
 from astropy.io import fits
 
 wfi = webbpsf.roman.WFI()
-wfi.filter = "GRISM0"
+wfi.filter = "GRISM0" #eventually make this detector specific
+
 
 #fiducial zero point set based on 2022 sim below
 def mag2flux(mag,zp=26.5):
@@ -18,6 +19,17 @@ def star_postage(mag,detx=2044,dety=2044,offx=0,offy=0,wavelength = 1.5e-6, fov_
     psf = wfi.calc_psf(monochromatic=wavelength, fov_pixels=fov_pixels, oversample=oversample)
     flux = mag2flux(mag)
     return psf[0].data*flux
+
+def get_psf(wavelength = 1.5e-6, fov_pixels=364, oversample=2,detx=2044,dety=2044):
+    wfi.detector_position = (detx, dety) #fiducial case is at the center
+    psf = wfi.calc_psf(monochromatic=wavelength, fov_pixels=fov_pixels, oversample=oversample)
+    return psf
+
+#wavelength = 1.5e-6, fov_pixels=364, oversample=2
+def star_postage_inpsf(mag,psf):
+    flux = mag2flux(mag)
+    return psf[0].data*flux
+
 
 def add_Roman_header(file_name,fout_name=None,roman_base_dir='',det='1'):
     if fout_name is None:
