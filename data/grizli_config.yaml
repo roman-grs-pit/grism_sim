@@ -13,24 +13,24 @@ spectrum_overlap: 10 # Extent of overlap between PSFs in Angstroms (roll-on/off)
 
 # The below values have need to be corrected:
 # 1) Different methods for determining max dy return different results
-# 2) These sizes do not account for size of objects, but only for maximum dy on the detector
+# 2) These sizes do not account for size of objects, but only for maximum dy+10 on the detector
 # These sizes do have a significant impact on compute times and should be minimized as much as possible.
 size: 
  SCA1: 87
- SCA2: 80
- SCA3: 88
- SCA4: 180
- SCA5: 195
- SCA6: 209
- SCA7: 279
- SAC8: 302
- SCA9: 328
- SCA10: 98
- SCA11: 101
- SCA12: 110
- SCA13: 203
- SCA14: 217
- SCA15: 232
- SCA16: 303
- SCA17: 326
- SCA18: 353
+ SCA2: 90
+ SCA3: 98
+ SCA4: 190
+ SCA5: 205
+ SCA6: 219
+ SCA7: 289
+ SAC8: 312
+ SCA9: 338
+ SCA10: 108
+ SCA11: 111
+ SCA12: 120
+ SCA13: 213
+ SCA14: 227
+ SCA15: 242
+ SCA16: 313
+ SCA17: 336
+ SCA18: 363
