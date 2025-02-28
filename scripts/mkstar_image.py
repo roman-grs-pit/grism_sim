@@ -206,9 +206,9 @@ hdul = fits.HDUList([phdu,ihdu,ehdu,dhdu])
 hdul.writeto(direct_fits_out_nopad, overwrite=True)
 #hdul.writeto(direct_fits_out, overwrite=True)
 
-filetest = fits.open(direct_fits_out_nopad)
-for i in range(0,len(filetest)):
-    print(filetest[i].header.keys)
+#filetest = fits.open(direct_fits_out_nopad)
+#for i in range(0,len(filetest)):
+#    print(filetest[i].header.keys)
 
 size = grizli_conf["size"][det]
 
