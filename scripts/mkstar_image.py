@@ -79,19 +79,19 @@ with open(conf_file) as f:
 
 input_star_fn = os.path.join(github_dir, 'star_fields/py/stars_radec00.ecsv') #this was produced by the script in star_fields
 
-pad = args.pad #user supplied padding, most relevant for input direct image
+pad = args.pad #user supplied padding, corresponding to the size in pixels for the psf and thus the size of each object in the direct image
 gpad = grizli_conf["pad"] #grism padding needed based on configuration yaml
-#we will make padding equal to the greater of the two
-if pad > gpad:
-    gpad = pad
-else:
-    pad = gpad
-print('the padding used throughout is '+str(pad))
+#Taking this out and instead using combination//we will make padding equal to the greater of the two
+#if pad > gpad:
+#    gpad = pad
+#else:
+#    pad = gpad
+#print('the padding used throughout is '+str(pad))
 
 
 stars00 = Table.read(input_star_fn)
-sel_ondet = stars00['Xpos'] < 4088
-sel_ondet &= stars00['Ypos'] < 4088
+sel_ondet = stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
+sel_ondet &= stars00['Ypos'] < 4088 + 2*( gpad)
 print('check no negative x,y positions:')
 print(np.min(stars00['Xpos'] ),np.min(stars00['Ypos']))
 stars00 = stars00[sel_ondet]
@@ -129,8 +129,8 @@ if args.mkdirect == 'y':
     #This takes ~6 minutes and is by far the greatest processing time
     #The time is dominated by calculating the PSF for each object...should switch to using  a grid: https://webbpsf.readthedocs.io/en/latest/psf_grids.html
     #If you see obvious ways to speed it up, please test their implementation and make PR!
-	full_image = np.zeros((4088+2*pad,4088+2*pad))
-	full_seg = np.zeros((4088+2*pad,4088+2*pad),dtype=int)
+	full_image = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)))
+	full_seg = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)),dtype=int)
 	thresh = 0.01 #threshold flux for segmentation map
 	N = 0
 	if args.fast_direct == 'y':
@@ -140,7 +140,7 @@ if args.mkdirect == 'y':
 		xpos = stars00[i]['Xpos']
 		ypos = stars00[i]['Ypos']
 		mag = stars00[i]['magnitude']
-		if xpos > 4088 or ypos > 4088:
+		if xpos > 4088+2*gpad or ypos > 4088+2*gpad:
 		    print(xpos,ypos,'out of bounds position')
 		xp = int(xpos)
 		yp = int(ypos)
@@ -183,27 +183,37 @@ if args.mkdirect == 'y':
 	hdu.writeto(pad_seg, overwrite=True)
 
 file = fits.open(direct_fits_out)
-phdu = fits.PrimaryHDU()
-cut_image = file[1].data#[pad:-pad,pad:-pad]
+cut_image = file[1].data[pad:-pad,pad:-pad]
+phdu = fits.PrimaryHDU(data=cut_image)
+phdu.header["INSTRUME"] = 'ROMAN   '
+phdu.header["FILTER"] = "f140w"
+phdu.header["EXPTIME"] = 141
+shp = cut_image.shape
+phdu.header = iu.add_wcs(phdu,ra, dec, crpix2=shp[1]/2,crpix1=shp[0]/2, cdelt1=0.11, cdelt2=0.11,
+                crota2=pa_aper,naxis1=shp[0],naxis2=shp[1])
+
+#print(phdu.header)
+
 #plt.imshow(np.log(cut_image+.01))
 #plt.show()
 err = np.random.poisson(10,cut_image.shape)*0.001 #np.zeros(cut_image.shape)
-ihdu = fits.ImageHDU(data=cut_image,name='SCI',header=head)
-ehdu = fits.ImageHDU(data=err,name='ERR',header=head)
-dhdu = fits.ImageHDU(data=np.zeros(cut_image.shape),name='DQ')
+ihdu = fits.ImageHDU(data=cut_image,name='SCI',header=phdu.header)
+ehdu = fits.ImageHDU(data=err,name='ERR',header=phdu.header)
+dhdu = fits.ImageHDU(data=np.zeros(cut_image.shape),name='DQ',header=phdu.header)
 hdul = fits.HDUList([phdu,ihdu,ehdu,dhdu])
+#hdul = fits.HDUList([ihdu,ehdu,dhdu])
 
-hdul[0].header["INSTRUME"] = 'ROMAN   '
-hdul[0].header["FILTER"] = "f140w"
-hdul[0].header["EXPTIME"] = 141
-	
-#hdul.writeto(direct_fits_out_nopad, overwrite=True)
-hdul.writeto(direct_fits_out, overwrite=True)
+hdul.writeto(direct_fits_out_nopad, overwrite=True)
+#hdul.writeto(direct_fits_out, overwrite=True)
 
+filetest = fits.open(direct_fits_out_nopad)
+for i in range(0,len(filetest)):
+    print(filetest[i].header.keys)
 
 size = grizli_conf["size"][det]
 
-roman = GrismFLT(grism_file=empty_grism,direct_file=direct_fits_out_nopad, seg_file=None, pad=gpad)
+#roman = GrismFLT(grism_file=empty_grism,direct_file=direct_fits_out_nopad, seg_file=None, pad=gpad)
+roman = GrismFLT(grism_file=empty_grism,ref_file=direct_fits_out_nopad, seg_file=None, pad=gpad)
 testf = fits.open(nopad_seg)
 #roman = GrismFLT(grism_file=empty_grism,direct_file=direct_fits_out_nopad, seg_file=None, pad=gpad)
 #testf = fits.open(pad_seg)
@@ -219,11 +229,12 @@ if args.checkseg == 'y':
 		ypos = int(stars00[i]['Ypos'])
 		print(photid,masked_seg[xpos][ypos],cut_image[xpos][ypos])
 
-padded_masked_seg = np.pad(masked_seg, [gpad, gpad], mode='constant')
-roman.seg = padded_masked_seg.astype("float32")
+#padded_masked_seg = np.pad(masked_seg, [gpad, gpad], mode='constant')
+#roman.seg = padded_masked_seg.astype("float32")
 
-#roman.seg = masked_seg.astype("float32")
+roman.seg = masked_seg.astype("float32") #this segmentation map should have the area of the padded grism image, but not have the padding added because of the PSF size
 
+print(masked_seg.shape,cut_image.shape)
 #print('added segmentation map')
 
 #SED_dir = roman_base_dir+"FOV0/SEDs/" # Change to your path to directory containing SEDs
