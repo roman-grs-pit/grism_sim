@@ -3,7 +3,7 @@ minlam: 10000 # Angstroms
 maxlam: 20000 # Angstroms
 grism_background: 0.57 # counts/sec
 
-pad: 800 # Pad chosen to be >one full trace dx
+pad: 1000 # Pad chosen to be >one full trace dx (make sure also includes size of object)
 # The pad does not seem to have a large impact on compute times.
 # It only needs to be larger than one full trace in x. It can be defined seperately in the x and y.
 
