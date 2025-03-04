@@ -57,7 +57,7 @@ star_image_dir = args.star_image_dir
 github_dir = args.github_dir
 det_num = args.det
 
-det = "SCA%i" % (det_num)
+det = "SCA{:02}".format(det_num)
 
 if not github_dir:
     print()
@@ -134,7 +134,7 @@ if args.mkdirect == 'y':
 	thresh = 0.01 #threshold flux for segmentation map
 	N = 0
 	if args.fast_direct == 'y':
-	    fid_psf = iu.get_psf(fov_pixels=pad-1)
+	    fid_psf = iu.get_psf(fov_pixels=pad-1, det=det)
 	#stars00 = Table.read(args.input_star_fn)
 	for i in range(0,len(stars00)):
 		xpos = stars00[i]['Xpos']
@@ -149,7 +149,7 @@ if args.mkdirect == 'y':
 		if args.fast_direct == 'y':
 		    sp = iu.star_postage_inpsf(mag,fid_psf)
 		else:
-		    sp = iu.star_postage(mag,xpos,ypos,xoff,yoff,fov_pixels=pad-1)
+		    sp = iu.star_postage(mag,xpos,ypos,xoff,yoff,fov_pixels=pad-1, det=det)
 		fov_pixels = pad-1
 		full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
 		selseg = sp > thresh
