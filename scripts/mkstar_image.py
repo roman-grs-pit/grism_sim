@@ -75,7 +75,7 @@ if not star_image_dir:
 
 conf_file = os.path.join(github_dir, "grism_sim/data/grizli_config.yaml")
 with open(conf_file) as f:
-	grizli_conf = yaml.safe_load(f)
+    grizli_conf = yaml.safe_load(f)
 
 input_star_fn = os.path.join(github_dir, 'star_fields/py/stars_radec00.ecsv') #this was produced by the script in star_fields
 
@@ -129,58 +129,58 @@ if args.mkdirect == 'y':
     #This takes ~6 minutes and is by far the greatest processing time
     #The time is dominated by calculating the PSF for each object...should switch to using  a grid: https://webbpsf.readthedocs.io/en/latest/psf_grids.html
     #If you see obvious ways to speed it up, please test their implementation and make PR!
-	full_image = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)))
-	full_seg = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)),dtype=int)
-	thresh = 0.01 #threshold flux for segmentation map
-	N = 0
-	if args.fast_direct == 'y':
-	    fid_psf = iu.get_psf(fov_pixels=pad-1, det=det)
-	#stars00 = Table.read(args.input_star_fn)
-	for i in range(0,len(stars00)):
-		xpos = stars00[i]['Xpos']
-		ypos = stars00[i]['Ypos']
-		mag = stars00[i]['magnitude']
-		if xpos > 4088+2*gpad or ypos > 4088+2*gpad:
-		    print(xpos,ypos,'out of bounds position')
-		xp = int(xpos)
-		yp = int(ypos)
-		xoff = 0#xpos-xp
-		yoff = 0#ypos-yp
-		if args.fast_direct == 'y':
-		    sp = iu.star_postage_inpsf(mag,fid_psf)
-		else:
-		    sp = iu.star_postage(mag,xpos,ypos,xoff,yoff,fov_pixels=pad-1, det=det)
-		fov_pixels = pad-1
-		full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
-		selseg = sp > thresh
-		seg = np.zeros((len(sp),len(sp)),dtype=int)
-		seg[selseg] = i+1
-		#set instead of add; any blends end up being last added source
-		#but, then go back and return the values that got set to zero back to their original values
-		full_segold = np.copy(full_seg)
-		full_seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] = seg 
-		sel = full_seg != i+1
-		full_seg[sel] = full_segold[sel]
-		N += 1
-		if N//10 == N/10:
-			print(N,Ntot,len(np.unique(full_seg)),i+1)
-	
-	phdu = fits.PrimaryHDU()
-	ihdu = fits.ImageHDU(data=full_image,name='SCI')
-	err_array = np.zeros(full_image.shape) #this gets over-written for cut image currently, 0s are bad for grizli if it actually gets used
-	ehdu = fits.ImageHDU(data=err_array,name='ERR')
-	hdul = fits.HDUList([phdu,ihdu,ehdu])
-	hdul[0].header["INSTRUME"] = "ROMAN"
-	#hdul[0].header["FILTER"] = "f140w"
-	
-	hdul.writeto(direct_fits_out, overwrite=True)
-	
-	hdu = fits.PrimaryHDU(data=full_seg[pad:-pad,pad:-pad])
-	hdul = fits.HDUList([hdu])
-	hdu.writeto(nopad_seg, overwrite=True)
-	hdu = fits.PrimaryHDU(data=full_seg)
-	hdul = fits.HDUList([hdu])
-	hdu.writeto(pad_seg, overwrite=True)
+    full_image = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)))
+    full_seg = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)),dtype=int)
+    thresh = 0.01 #threshold flux for segmentation map
+    N = 0
+    if args.fast_direct == 'y':
+        fid_psf = iu.get_psf(fov_pixels=pad-1, det=det)
+    #stars00 = Table.read(args.input_star_fn)
+    for i in range(0,len(stars00)):
+        xpos = stars00[i]['Xpos']
+        ypos = stars00[i]['Ypos']
+        mag = stars00[i]['magnitude']
+        if xpos > 4088+2*gpad or ypos > 4088+2*gpad:
+            print(xpos,ypos,'out of bounds position')
+        xp = int(xpos)
+        yp = int(ypos)
+        xoff = 0#xpos-xp
+        yoff = 0#ypos-yp
+        if args.fast_direct == 'y':
+            sp = iu.star_postage_inpsf(mag,fid_psf)
+        else:
+            sp = iu.star_postage(mag,xpos,ypos,xoff,yoff,fov_pixels=pad-1, det=det)
+        fov_pixels = pad-1
+        full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
+        selseg = sp > thresh
+        seg = np.zeros((len(sp),len(sp)),dtype=int)
+        seg[selseg] = i+1
+        #set instead of add; any blends end up being last added source
+        #but, then go back and return the values that got set to zero back to their original values
+        full_segold = np.copy(full_seg)
+        full_seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] = seg 
+        sel = full_seg != i+1
+        full_seg[sel] = full_segold[sel]
+        N += 1
+        if N//10 == N/10:
+            print(N,Ntot,len(np.unique(full_seg)),i+1)
+    
+    phdu = fits.PrimaryHDU()
+    ihdu = fits.ImageHDU(data=full_image,name='SCI')
+    err_array = np.zeros(full_image.shape) #this gets over-written for cut image currently, 0s are bad for grizli if it actually gets used
+    ehdu = fits.ImageHDU(data=err_array,name='ERR')
+    hdul = fits.HDUList([phdu,ihdu,ehdu])
+    hdul[0].header["INSTRUME"] = "ROMAN"
+    #hdul[0].header["FILTER"] = "f140w"
+    
+    hdul.writeto(direct_fits_out, overwrite=True)
+    
+    hdu = fits.PrimaryHDU(data=full_seg[pad:-pad,pad:-pad])
+    hdul = fits.HDUList([hdu])
+    hdu.writeto(nopad_seg, overwrite=True)
+    hdu = fits.PrimaryHDU(data=full_seg)
+    hdul = fits.HDUList([hdu])
+    hdu.writeto(pad_seg, overwrite=True)
 
 file = fits.open(direct_fits_out)
 cut_image = file[1].data[pad:-pad,pad:-pad]
@@ -222,12 +222,12 @@ testf = fits.open(nopad_seg)
 masked_seg = testf[0].data
 #print('number of unique values in segmentation map '+str(len(np.unique(masked_seg))),np.min(masked_seg),np.max(masked_seg))
 if args.checkseg == 'y':
-	for i in range(0,len(stars00)):
-		#sel_row = stars00['index'] == photid
-		photid = i+1
-		xpos = int(stars00[i]['Xpos'])
-		ypos = int(stars00[i]['Ypos'])
-		print(photid,masked_seg[xpos][ypos],cut_image[xpos][ypos])
+    for i in range(0,len(stars00)):
+        #sel_row = stars00['index'] == photid
+        photid = i+1
+        xpos = int(stars00[i]['Xpos'])
+        ypos = int(stars00[i]['Ypos'])
+        print(photid,masked_seg[xpos][ypos],cut_image[xpos][ypos])
 
 #padded_masked_seg = np.pad(masked_seg, [gpad, gpad], mode='constant')
 #roman.seg = padded_masked_seg.astype("float32")
@@ -282,12 +282,17 @@ for i in range(0,len(stars00)):
 
 print(roman.model.shape)
 
-if gpad != 0:
-	plt.imshow(roman.model[gpad:-gpad, gpad:-gpad], vmax=0.2, cmap="hot")
-else:
-	plt.imshow(roman.model, vmax=0.2, cmap="hot")
+plt.imshow(roman.model, vmax=0.2, cmap="hot")
 plt.colorbar()
+plt.title('with padding')
 plt.show()
+
+
+if gpad != 0:
+    plt.imshow(roman.model[gpad:-gpad, gpad:-gpad], vmax=0.2, cmap="hot")
+    plt.title('cut to 4088x4088')
+    plt.colorbar()
+    plt.show()
 
 
 
