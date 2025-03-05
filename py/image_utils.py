@@ -12,15 +12,17 @@ def mag2flux(mag,zp=26.5):
     flux = f0*10**(-0.4*mag) #mag = 26.5 - 2.5*np.log10(sumflux)
     return flux
     
-def star_postage(mag,detx=2044,dety=2044,offx=0,offy=0,wavelength = 1.5e-6, fov_pixels=364, oversample=2,arcperpixel = 0.11):
+def star_postage(mag,detx=2044,dety=2044,offx=0,offy=0,wavelength = 1.5e-6, fov_pixels=364, oversample=2,arcperpixel = 0.11, det="SCA01"):
     wfi.options['source_offset_x'] = offx*arcperpixel
     wfi.options['source_offset_y'] = offy*arcperpixel
+    wfi.detector = det
     wfi.detector_position = (detx, dety)
     psf = wfi.calc_psf(monochromatic=wavelength, fov_pixels=fov_pixels, oversample=oversample)
     flux = mag2flux(mag)
     return psf[0].data*flux
 
-def get_psf(wavelength = 1.5e-6, fov_pixels=364, oversample=2,detx=2044,dety=2044):
+def get_psf(wavelength = 1.5e-6, fov_pixels=364, oversample=2,detx=2044,dety=2044, det="SCA01"):
+    wfi.detector = det
     wfi.detector_position = (detx, dety) #fiducial case is at the center
     psf = wfi.calc_psf(monochromatic=wavelength, fov_pixels=fov_pixels, oversample=oversample)
     return psf
