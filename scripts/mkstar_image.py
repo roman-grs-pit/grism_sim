@@ -17,6 +17,10 @@ UserWarning: No thermal tables found, no thermal calculations can be performed. 
 ## The extinction and mtab folder can be found here: https://pysynphot.readthedocs.io/en/stable/ but do not seem to be necessary at the moment.
 
 '''
+from time import time
+
+start = time()
+
 import numpy as np
 from astropy.io import fits
 from astropy.table import Table
@@ -124,6 +128,7 @@ file[1].header["CONFFILE"] = os.path.join(github_dir, "grism_sim/data/Roman.det%
 file.writeto(empty_grism, overwrite=True)
 file.close()
 
+start_direct = time() #! Timing step
 
 if args.mkdirect == 'y':
     #This takes ~6 minutes and is by far the greatest processing time
@@ -136,6 +141,9 @@ if args.mkdirect == 'y':
 	if args.fast_direct == 'y':
 	    fid_psf = iu.get_psf(fov_pixels=pad-1, det=det)
 	#stars00 = Table.read(args.input_star_fn)
+
+	start_postage = time() #! Timing step
+
 	for i in range(0,len(stars00)):
 		xpos = stars00[i]['Xpos']
 		ypos = stars00[i]['Ypos']
@@ -164,6 +172,8 @@ if args.mkdirect == 'y':
 		N += 1
 		if N//10 == N/10:
 			print(N,Ntot,len(np.unique(full_seg)),i+1)
+		
+	end_postage = time() #! Timing Step
 	
 	phdu = fits.PrimaryHDU()
 	ihdu = fits.ImageHDU(data=full_image,name='SCI')
@@ -218,6 +228,7 @@ testf = fits.open(nopad_seg)
 #roman = GrismFLT(grism_file=empty_grism,direct_file=direct_fits_out_nopad, seg_file=None, pad=gpad)
 #testf = fits.open(pad_seg)
 
+end_direct = time() #! Timing Step
 
 masked_seg = testf[0].data
 #print('number of unique values in segmentation map '+str(len(np.unique(masked_seg))),np.min(masked_seg),np.max(masked_seg))
@@ -252,6 +263,8 @@ tempdir = os.path.join(github_dir, 'star_fields/data/SEDtemplates/')
 templates = open(os.path.join(github_dir, 'star_fields/data/SEDtemplates/input_spectral_STARS.lis')).readlines()
 temp_inds = stars00['star_template_index'] - 58*(stars00['star_template_index']//58)
 
+start_grism = time() #! Timing Step
+
 count = 0
 print('about to simulate grism')
 for i in range(0,len(stars00)):
@@ -280,14 +293,17 @@ for i in range(0,len(stars00)):
     count += 1
     #print(count)
 
+end_grism = time()
+
 print(roman.model.shape)
 
-if gpad != 0:
-	plt.imshow(roman.model[gpad:-gpad, gpad:-gpad], vmax=0.2, cmap="hot")
-else:
-	plt.imshow(roman.model, vmax=0.2, cmap="hot")
-plt.colorbar()
-plt.show()
+#! Taking out to preserve timing
+# if gpad != 0:
+# 	plt.imshow(roman.model[gpad:-gpad, gpad:-gpad], vmax=0.2, cmap="hot")
+# else:
+# 	plt.imshow(roman.model, vmax=0.2, cmap="hot")
+# plt.colorbar()
+# plt.show()
 
 
 
@@ -306,3 +322,16 @@ else:
 hdu_list.writeto(out_fn, overwrite=True)
 hdu_list.close()
 print('wrote to '+out_fn)
+
+
+end = time()
+
+print(
+	"""
+	Timings:
+	Overall runtime: %f
+	Direct time:     %f
+	Postage time:    %f
+	Grism time:      %f
+	"""%((end - start), (end_direct - start_direct), (end_postage - start_postage), (end_grism - start_grism))
+)
