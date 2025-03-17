@@ -16,6 +16,12 @@ def star_postage(mag,detx=2044,dety=2044,offx=0,offy=0,wavelength = 1.5e-6, fov_
     wfi.options['source_offset_x'] = offx*arcperpixel
     wfi.options['source_offset_y'] = offy*arcperpixel
     wfi.detector = det
+
+    if detx > 4095:
+        detx = 4095
+    if dety > 4095:
+        dety = 4095
+        
     wfi.detector_position = (detx, dety)
     psf = wfi.calc_psf(monochromatic=wavelength, fov_pixels=fov_pixels, oversample=oversample)
     flux = mag2flux(mag)
