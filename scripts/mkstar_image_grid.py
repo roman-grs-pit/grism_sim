@@ -19,7 +19,7 @@ UserWarning: No thermal tables found, no thermal calculations can be performed. 
 '''
 from time import time
 
-start = time()
+start = time() #! TIMING
 
 import numpy as np
 from astropy.io import fits
@@ -128,7 +128,7 @@ file[1].header["CONFFILE"] = os.path.join(github_dir, "grism_sim/data/Roman.det%
 file.writeto(empty_grism, overwrite=True)
 file.close()
 
-start_direct = time()
+start_direct = time() #! TIMING
 
 if args.mkdirect == 'y':
     #This takes ~6 minutes and is by far the greatest processing time
@@ -144,7 +144,9 @@ if args.mkdirect == 'y':
         psf_grid = iu.create_psf_grid(fov_pixels=pad-1)
     #stars00 = Table.read(args.input_star_fn)
 
-    start_postage = time()
+    start_postage = time() #! TIMING
+    cumulative_psf = 0
+    cumulative_seg = 0
 
     for i in range(0,len(stars00)):
         xpos = stars00[i]['Xpos']
@@ -156,26 +158,27 @@ if args.mkdirect == 'y':
         yp = int(ypos)
         xoff = 0#xpos-xp
         yoff = 0#ypos-yp
+
+        start_psf = time() #! TIMING
         if args.fast_direct == 'y':
             sp = iu.star_postage_inpsf(mag,fid_psf)
         else:
             sp = iu.star_postage_grid(psf_grid,mag,xpos,ypos,fov_pixels=pad-1)
+        end_psf = time() #! TIMING
         fov_pixels = pad-1
         full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
+        start_seg = time() #! TIMING
         selseg = sp > thresh
-        seg = np.zeros((len(sp),len(sp)),dtype=int)
-        seg[selseg] = i+1
-        #set instead of add; any blends end up being last added source
-        #but, then go back and return the values that got set to zero back to their original values
-        full_segold = np.copy(full_seg)
-        full_seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] = seg 
-        sel = full_seg != i+1
-        full_seg[sel] = full_segold[sel]
+        full_seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels][selseg] = i+1
+        end_seg = time() #! TIMING
         N += 1
         if N//10 == N/10:
             print(N,Ntot,len(np.unique(full_seg)),i+1)
+
+        cumulative_psf += (end_psf - start_psf) #! TIMING
+        cumulative_seg += (end_seg - start_seg)
     
-    end_postage = time()
+    end_postage = time() #! TIMING
 
     phdu = fits.PrimaryHDU()
     ihdu = fits.ImageHDU(data=full_image,name='SCI')
@@ -230,7 +233,7 @@ testf = fits.open(nopad_seg)
 #roman = GrismFLT(grism_file=empty_grism,direct_file=direct_fits_out_nopad, seg_file=None, pad=gpad)
 #testf = fits.open(pad_seg)
 
-end_direct = time()
+end_direct = time() #! TIMING
 
 masked_seg = testf[0].data
 #print('number of unique values in segmentation map '+str(len(np.unique(masked_seg))),np.min(masked_seg),np.max(masked_seg))
@@ -265,7 +268,7 @@ tempdir = os.path.join(github_dir, 'star_fields/data/SEDtemplates/')
 templates = open(os.path.join(github_dir, 'star_fields/data/SEDtemplates/input_spectral_STARS.lis')).readlines()
 temp_inds = stars00['star_template_index'] - 58*(stars00['star_template_index']//58)
 
-start_grism = time()
+start_grism = time() #! TIMING
 
 count = 0
 print('about to simulate grism')
@@ -295,7 +298,7 @@ for i in range(0,len(stars00)):
     count += 1
     #print(count)
 
-end_grism = time()
+end_grism = time() #! TIMING
 
 print(roman.model.shape)
 
@@ -329,7 +332,7 @@ hdu_list.writeto(out_fn, overwrite=True)
 hdu_list.close()
 print('wrote to '+out_fn)
 
-end = time() 
+end = time() #! TIMING
 
 print(
 	"""
@@ -338,5 +341,9 @@ print(
 	Direct time:     %f
 	Postage time:    %f
 	Grism time:      %f
-	"""%((end - start), (end_direct - start_direct), (end_postage - start_postage), (end_grism - start_grism))
+	
+	Cumulative PSF:  %f
+	Cumulative Seg:  %f
+	
+	"""%((end - start), (end_direct - start_direct), (end_postage - start_postage), (end_grism - start_grism), cumulative_psf, cumulative_seg)
 )
