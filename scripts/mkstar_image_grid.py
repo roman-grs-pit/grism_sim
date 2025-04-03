@@ -170,12 +170,11 @@ if args.mkdirect == 'y':
         start_seg = time() #! TIMING
         selseg = sp > thresh
         full_seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels][selseg] = i+1
-        end_seg = time() #! TIMING
         N += 1
         if N//10 == N/10:
             print(N,Ntot,len(np.unique(full_seg)),i+1)
-
-        cumulative_psf += (end_psf - start_psf) #! TIMING
+        end_seg = time() #! TIMING
+        cumulative_psf += (end_psf - start_psf)
         cumulative_seg += (end_seg - start_seg)
     
     end_postage = time() #! TIMING
