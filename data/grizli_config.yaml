@@ -2,6 +2,7 @@ detector_size: 4088
 minlam: 10000 # Angstroms
 maxlam: 20000 # Angstroms
 grism_background: 0.57 # counts/sec
+thresh: 0.01 # threshold flux for segmentation map
 
 pad: 1000 # Pad chosen to be >one full trace dx (make sure also includes size of object)
 # The pad does not seem to have a large impact on compute times.

@@ -18,7 +18,6 @@ UserWarning: No thermal tables found, no thermal calculations can be performed. 
 
 '''
 from time import time
-from tqdm import tqdm
 
 start = time() #! TIMING
 
@@ -129,79 +128,12 @@ file[1].header["CONFFILE"] = os.path.join(github_dir, "grism_sim/data/Roman.det%
 file.writeto(empty_grism, overwrite=True)
 file.close()
 
-start_direct = time() #! TIMING
+# Here, we make and save dummy files with the appropriate shape and headers
+# Later, the direct and segmentation images are filled in and saved again
+full_image = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)))
 
-if args.mkdirect == 'y':
-    #This takes ~6 minutes and is by far the greatest processing time
-    #The time is dominated by calculating the PSF for each object...should switch to using  a grid: https://webbpsf.readthedocs.io/en/latest/psf_grids.html
-    #If you see obvious ways to speed it up, please test their implementation and make PR!
-    full_image = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)))
-    full_seg = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)),dtype=int)
-    thresh = 0.01 #threshold flux for segmentation map
-    N = 0
-    if args.fast_direct == 'y':
-        fid_psf = iu.get_psf(fov_pixels=pad-1, det=det)
-    else:
-        psf_grid = iu.create_psf_grid(fov_pixels=pad-1)
-    #stars00 = Table.read(args.input_star_fn)
-
-    start_postage = time() #! TIMING
-    cumulative_psf = 0
-    cumulative_seg = 0
-
-    for i in range(0,len(stars00)):
-        xpos = stars00[i]['Xpos']
-        ypos = stars00[i]['Ypos']
-        mag = stars00[i]['magnitude']
-        if xpos > 4088+2*gpad or ypos > 4088+2*gpad:
-            print(xpos,ypos,'out of bounds position')
-        xp = int(xpos)
-        yp = int(ypos)
-        xoff = 0#xpos-xp
-        yoff = 0#ypos-yp
-
-        start_psf = time() #! TIMING
-        if args.fast_direct == 'y':
-            sp = iu.star_postage_inpsf(mag,fid_psf)
-        else:
-            sp = iu.star_postage_grid(psf_grid,mag,xpos,ypos,fov_pixels=pad-1)
-        end_psf = time() #! TIMING
-        fov_pixels = pad-1
-        full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
-        start_seg = time() #! TIMING
-        selseg = sp > thresh
-        full_seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels][selseg] = i+1
-        end_seg = time() #! TIMING
-
-        #! TROUBLESHOOTING
-        N += 1
-        if N//10 == N/10:
-            print(N,Ntot,len(np.unique(full_seg)),i+1)
-
-        cumulative_psf += (end_psf - start_psf)
-        cumulative_seg += (end_seg - start_seg)
-    
-    end_postage = time() #! TIMING
-
-    phdu = fits.PrimaryHDU()
-    ihdu = fits.ImageHDU(data=full_image,name='SCI')
-    err_array = np.zeros(full_image.shape) #this gets over-written for cut image currently, 0s are bad for grizli if it actually gets used
-    ehdu = fits.ImageHDU(data=err_array,name='ERR')
-    hdul = fits.HDUList([phdu,ihdu,ehdu])
-    hdul[0].header["INSTRUME"] = "ROMAN"
-    #hdul[0].header["FILTER"] = "f140w"
-    
-    hdul.writeto(direct_fits_out, overwrite=True)
-    
-    hdu = fits.PrimaryHDU(data=full_seg[pad:-pad,pad:-pad])
-    hdul = fits.HDUList([hdu])
-    hdu.writeto(nopad_seg, overwrite=True)
-    hdu = fits.PrimaryHDU(data=full_seg)
-    hdul = fits.HDUList([hdu])
-    hdu.writeto(pad_seg, overwrite=True)
-
-file = fits.open(direct_fits_out)
-cut_image = file[1].data[pad:-pad,pad:-pad]
+# cut_image = full_image[pad:-pad,pad:-pad]
+cut_image = full_image
 phdu = fits.PrimaryHDU(data=cut_image)
 phdu.header["INSTRUME"] = 'ROMAN   '
 phdu.header["FILTER"] = "f140w"
@@ -232,29 +164,7 @@ size = grizli_conf["size"][det]
 
 #roman = GrismFLT(grism_file=empty_grism,direct_file=direct_fits_out_nopad, seg_file=None, pad=gpad)
 roman = GrismFLT(grism_file=empty_grism,ref_file=direct_fits_out_nopad, seg_file=None, pad=gpad)
-testf = fits.open(nopad_seg)
 #roman = GrismFLT(grism_file=empty_grism,direct_file=direct_fits_out_nopad, seg_file=None, pad=gpad)
-#testf = fits.open(pad_seg)
-
-end_direct = time() #! TIMING
-
-masked_seg = testf[0].data
-#print('number of unique values in segmentation map '+str(len(np.unique(masked_seg))),np.min(masked_seg),np.max(masked_seg))
-if args.checkseg == 'y':
-    for i in range(0,len(stars00)):
-        #sel_row = stars00['index'] == photid
-        photid = i+1
-        xpos = int(stars00[i]['Xpos'])
-        ypos = int(stars00[i]['Ypos'])
-        print(photid,masked_seg[xpos][ypos],cut_image[xpos][ypos])
-
-#padded_masked_seg = np.pad(masked_seg, [gpad, gpad], mode='constant')
-#roman.seg = padded_masked_seg.astype("float32")
-
-roman.seg = masked_seg.astype("float32") #this segmentation map should have the area of the padded grism image, but not have the padding added because of the PSF size
-
-print(masked_seg.shape,cut_image.shape)
-#print('added segmentation map')
 
 #SED_dir = roman_base_dir+"FOV0/SEDs/" # Change to your path to directory containing SEDs
 
@@ -271,11 +181,60 @@ tempdir = os.path.join(github_dir, 'star_fields/data/SEDtemplates/')
 templates = open(os.path.join(github_dir, 'star_fields/data/SEDtemplates/input_spectral_STARS.lis')).readlines()
 temp_inds = stars00['star_template_index'] - 58*(stars00['star_template_index']//58)
 
-start_grism = time() #! TIMING
-
+# Preparing variable to simulate images
 count = 0
-print('about to simulate grism')
+thresh = grizli_conf["thresh"] # threshold flux for segmentation map
+det_with_pad = grizli_conf["detector_size"] + 2*gpad # size of the detector
+
+if args.fast_direct == 'y':
+    fid_psf = iu.get_psf(fov_pixels=pad-1, det=det)
+else:
+    psf_grid = iu.create_psf_grid(fov_pixels=pad-1)
+#stars00 = Table.read(args.input_star_fn)
+
+cumulative_psf = 0
+cumulative_seg = 0
+cumulative_grism = 0
+
+N=0
+
+start_single_loop = time() #! TIMING
+print('about to simulate images')
 for i in range(0,len(stars00)):
+    # DIRECT
+    xpos = stars00[i]['Xpos']
+    ypos = stars00[i]['Ypos']
+    mag = stars00[i]['magnitude']
+    if xpos > 4088+2*gpad or ypos > 4088+2*gpad:
+        print(xpos,ypos,'out of bounds position')
+    xp = int(xpos)
+    yp = int(ypos)
+    xoff = 0#xpos-xp
+    yoff = 0#ypos-yp
+
+    start_psf = time() #! TIMING
+    if args.fast_direct == 'y':
+        sp = iu.star_postage_inpsf(mag,fid_psf)
+    else:
+        sp = iu.star_postage_grid(psf_grid,mag,xp,yp,fov_pixels=pad-1)
+    end_psf = time() #! TIMING
+
+    fov_pixels = pad-1
+    # Collector
+    full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
+
+    sp_lims = [max(0,-(xp+pad-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(xp+pad+fov_pixels-det_with_pad)),
+               max(0,-(yp+pad-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(yp+pad+fov_pixels-det_with_pad))]
+    # Intermediate step; overwritten at end
+    roman.direct.data["REF"][xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] = sp[sp_lims[0]:sp_lims[1],sp_lims[2]:sp_lims[3]]
+    start_seg = time() #! TIMING
+    selseg = sp[sp_lims[0]:sp_lims[1],sp_lims[2]:sp_lims[3]] > thresh
+    # Intermediate step; no seg needs to be saved
+    roman.seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels][selseg] = i+1
+    end_seg = time() #! TIMING
+
+    start_grism = time() #! TIMING
+    # GRISM
     photid = i+1
     row = stars00[i]
     mag = row["magnitude"]
@@ -298,10 +257,22 @@ for i in range(0,len(stars00)):
     #print(row)
     roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=True, store=False,
                                is_cgs=True, spectrum_1d=[spec.wave, spec.flux])
+    
+    end_grism = time() #! TIMING
+
     count += 1
     #print(count)
 
-end_grism = time() #! TIMING
+    cumulative_psf += (end_psf - start_psf)
+    cumulative_seg += (end_seg - start_seg)
+    cumulative_grism += (end_grism - start_grism)
+
+    #! TROUBLESHOOTING
+    N += 1
+    if N//10 == N/10:
+        print(N,Ntot,len(np.unique(roman.seg)),i+1)
+
+end_single_loop = time() #! TIMING
 
 print(roman.model.shape)
 
@@ -317,7 +288,16 @@ if gpad != 0:
     plt.colorbar()
     plt.show()
 
+# save direct image
+phdu = fits.PrimaryHDU()
+ihdu = fits.ImageHDU(data=full_image,name='SCI')
+err_array = np.zeros(full_image.shape) #this gets over-written for cut image currently, 0s are bad for grizli if it actually gets used
+ehdu = fits.ImageHDU(data=err_array,name='ERR')
+hdul = fits.HDUList([phdu,ihdu,ehdu])
+hdul[0].header["INSTRUME"] = "ROMAN"
+#hdul[0].header["FILTER"] = "f140w"
 
+hdul.writeto(direct_fits_out, overwrite=True)
 
 #save grism model image + noise
 out_fn = os.path.join(args.star_image_dir, args.out_fn)
@@ -340,13 +320,12 @@ end = time() #! TIMING
 print(
 	"""
 	Timings:
-	Overall runtime: %f
-	Direct time:     %f
-	Postage time:    %f
-	Grism time:      %f
+	Overall runtime:  %f
+	Image sim time:   %f
 	
-	Cumulative PSF:  %f
-	Cumulative Seg:  %f
+	Cumulative PSF:   %f
+	Cumulative Seg:   %f
+	Cumulative Grism: %f
 	
-	"""%((end - start), (end_direct - start_direct), (end_postage - start_postage), (end_grism - start_grism), cumulative_psf, cumulative_seg)
+	"""%((end - start), (end_single_loop - start_single_loop), cumulative_psf, cumulative_seg, cumulative_grism)
 )
