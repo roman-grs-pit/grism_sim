@@ -191,14 +191,14 @@ if args.mkdirect == 'y':
         fov_pixels = pad-1
         full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
         selseg = sp > thresh
-        seg = np.zeros((len(sp),len(sp)),dtype=int)
-        seg[selseg] = i+1
+        #seg = np.zeros((len(sp),len(sp)),dtype=int)
+        #seg[selseg] = i+1
         #set instead of add; any blends end up being last added source
         #but, then go back and return the values that got set to zero back to their original values
-        full_segold = np.copy(full_seg)
-        full_seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] = seg 
-        sel = full_seg != i+1
-        full_seg[sel] = full_segold[sel]
+        #full_segold = np.copy(full_seg)
+        full_seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels][selseg] = i+1#seg 
+        #sel = full_seg != i+1
+        #full_seg[sel] = full_segold[sel]
         N += 1
         if N//10 == N/10:
             print(N,Ntot,len(np.unique(full_seg)),i+1)
