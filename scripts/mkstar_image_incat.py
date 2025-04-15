@@ -436,21 +436,21 @@ for i in tqdm(range(0,ngal)):
     selseg = sp > thresh
     #if np.sum(selseg) > 0:
     #print('number of pixels above threshold '+str(np.sum(selseg)))
-	full_seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels][selseg] = photid
-	masked_seg = full_seg[pad:-pad,pad:-pad]
-	roman.seg = np.asarray(masked_seg,dtype=np.float32)
-	
-	#get sed and convert to spectrum
-	sim_fn = mockdir+'galacticus_FOV_EVERY100_sub_'+str(row['SIM'])+'.hdf5'
-	sim = h5py.File(sim_fn, 'r')
-	sed = sim['Outputs']['SED:observed:dust:Av1.6523'][row['IDX']]
-	flux = sed[sel_wave]
-	gal_spec = S.ArraySpectrum(wave=wave, flux=flux, waveunits="angstroms", fluxunits="flam")
-	spec = gal_spec.renorm(mag, "abmag", bp)
-	spec.convert("flam")
-	
-	roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=True, store=False,
-							   is_cgs=True, spectrum_1d=[spec.wave, spec.flux])
+    full_seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels][selseg] = photid
+    masked_seg = full_seg[pad:-pad,pad:-pad]
+    roman.seg = np.asarray(masked_seg,dtype=np.float32)
+    
+    #get sed and convert to spectrum
+    sim_fn = mockdir+'galacticus_FOV_EVERY100_sub_'+str(row['SIM'])+'.hdf5'
+    sim = h5py.File(sim_fn, 'r')
+    sed = sim['Outputs']['SED:observed:dust:Av1.6523'][row['IDX']]
+    flux = sed[sel_wave]
+    gal_spec = S.ArraySpectrum(wave=wave, flux=flux, waveunits="angstroms", fluxunits="flam")
+    spec = gal_spec.renorm(mag, "abmag", bp)
+    spec.convert("flam")
+    
+    roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=True, store=False,
+                               is_cgs=True, spectrum_1d=[spec.wave, spec.flux])
     #else:
     #    print('no pixels above threshold')
 print(roman.model.shape)
