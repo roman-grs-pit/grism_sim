@@ -430,6 +430,7 @@ for i in tqdm(range(0,ngal)):
     #roman.direct.data['REF'] *= roman.direct.ref_photflam
     
     selseg = sp > thresh
+    print('number of pixels above threshold '+str(np.sum(selseg)))
     full_seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels][selseg] = photid
     masked_seg = full_seg[pad:-pad,pad:-pad]
     roman.seg = np.asarray(masked_seg,dtype=np.float32)
