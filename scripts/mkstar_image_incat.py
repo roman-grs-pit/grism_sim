@@ -406,7 +406,7 @@ for i in tqdm(range(0,ngal)):
     photid += 1
     row = gals[i]
     mag = row['mag']
-    imflux = row['flux']
+    imflux = iu.mag2flux(mag)#imflux = row['flux']
     #make image, put it in seg
     #full_image = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)))
     full_seg = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)),dtype=int)
