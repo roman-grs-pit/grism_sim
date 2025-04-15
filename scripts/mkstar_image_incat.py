@@ -193,6 +193,7 @@ ngal = args.ngal
 if ngal is None:
     ngal = len(gals)
 
+ngal = int(ngal)
 print('number of galaxies within detector padded region is '+str(ngal))
 
 
