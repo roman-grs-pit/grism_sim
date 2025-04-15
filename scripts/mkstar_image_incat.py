@@ -187,8 +187,10 @@ gals['flux'] = flux
 mag = -2.5*np.log10(flux)+26.5
 gals['mag'] = mag
 #gal_xy = gal_xy[sel_ondet]
+ngal = args.ngal
 if ngal is None:
     ngal = len(gals)
+
 print('number of galaxies within detector padded region is '+str(ngal))
 
 
