@@ -399,13 +399,13 @@ for i in tqdm(range(0,ngal)):
     full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
     masked_im = full_image[pad:-pad,pad:-pad]
     #copying from process_ref_file in grizli
-    roman.direct.data['REF'] = masked_im
+    roman.direct.data['REF'] = np.asarray(masked_im,dtype=np.float32)
     roman.direct.data['REF'] *= roman.direct.ref_photflam
     
     selseg = sp > thresh
     full_seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels][selseg] = photid
     masked_seg = full_seg[pad:-pad,pad:-pad]
-    roman.seg = masked_seg.astype("float32")
+    roman.seg = np.asarray(masked_seg,dtype=np.float32)
     
     #get sed and convert to spectrum
     sim_fn = mockdir+'galacticus_FOV_EVERY100_sub_'+str(row['SIM'])+'.hdf5'
