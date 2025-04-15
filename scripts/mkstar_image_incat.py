@@ -18,6 +18,7 @@ UserWarning: No thermal tables found, no thermal calculations can be performed. 
 
 '''
 import numpy as np
+from scipy import signal
 from astropy.io import fits
 from astropy.table import Table
 from astropy.wcs import WCS
