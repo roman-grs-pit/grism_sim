@@ -183,12 +183,16 @@ gals = Table(gals[sel_ondet])
 gals['Xpos'] = gal_xy[0][sel_ondet]
 gals['Ypos'] = gal_xy[1][sel_ondet]
 lum_distance = cosmo.luminosity_distance(gals['Z']).value
-lum_distance_cm = lum_distance*Mpc # cm
-flux = gals['tot_Lum_F158_Av1.6523']/(4.0*np.pi*lum_distance_cm**2.0)
-gals['flux'] = flux
-mag = -2.5*np.log10(flux)+26.5
+abM = -2.5*np.log10(f['tot_Lum_F184_Av1.6523'])
+mag = abM+5*np.log10(lum_distance*1e6) - 5 - 2.5*np.log10(1+f['Z'])
+#lum_distance_cm = lum_distance*Mpc # cm
+#flux = gals['tot_Lum_F158_Av1.6523']/(4.0*np.pi*lum_distance_cm**2.0)
+#gals['flux'] = flux
+#mag = -2.5*np.log10(flux)+26.5
 gals['mag'] = mag
 #gal_xy = gal_xy[sel_ondet]
+sel_mag = mag < 27
+gals = gals[sel_mag]
 ngal = args.ngal
 if ngal is None:
     ngal = len(gals)
@@ -257,7 +261,7 @@ if args.mkdirect == 'y':
         for i in tqdm(range(0,ngal)):
             row = gals[i]
             mag = row['mag']
-            imflux = row['flux']
+            imflux = iu.mag2flux(mag)#row['flux']
             #make image, put it in reference
             if args.fast_direct == 'y':
                 conv_prof = signal.convolve2d(fid_psf[0].data,testprof,mode='same')
