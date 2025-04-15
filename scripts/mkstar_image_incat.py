@@ -191,7 +191,7 @@ mag = abM+5*np.log10(lum_distance*1e6) - 5 - 2.5*np.log10(1+gals['Z'])
 #mag = -2.5*np.log10(flux)+26.5
 gals['mag'] = mag
 #gal_xy = gal_xy[sel_ondet]
-sel_mag = mag < 23
+#sel_mag = mag < 27
 gals = gals[sel_mag]
 ngal = args.ngal
 if ngal is None:
@@ -255,30 +255,30 @@ if args.mkdirect == 'y':
         #if N//10 == N/10:
         #    print(N,Ntot,len(np.unique(full_seg)),i+1)
     
-    if ngal > 0:
-        testprof = np.zeros((4,4))
-        print('adding galaxies to reference image')
-        for i in tqdm(range(0,ngal)):
-            row = gals[i]
-            mag = row['mag']
-            imflux = iu.mag2flux(mag)#row['flux']
-            #make image, put it in reference
-            if args.fast_direct == 'y':
-                conv_prof = signal.convolve2d(fid_psf[0].data,testprof,mode='same')
-            else:
-                print('need to write something for non-fixed psf')
-                break
-            xpos = row['Xpos']
-            ypos = row['Ypos']
-            if xpos > 4088+2*gpad or ypos > 4088+2*gpad:
-                print(xpos,ypos,'out of bounds position')
-            xp = int(xpos)
-            yp = int(ypos)
-            xoff = 0#xpos-xp
-            yoff = 0#ypos-yp
-            sp = imflux*conv_prof
-            fov_pixels = pad-1
-            full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
+#     if ngal > 0:
+#         testprof = np.ones((4,4))
+#         print('adding galaxies to reference image')
+#         for i in tqdm(range(0,ngal)):
+#             row = gals[i]
+#             mag = row['mag']
+#             imflux = iu.mag2flux(mag)#row['flux']
+#             #make image, put it in reference
+#             if args.fast_direct == 'y':
+#                 conv_prof = signal.convolve2d(fid_psf[0].data,testprof,mode='same')
+#             else:
+#                 print('need to write something for non-fixed psf')
+#                 break
+#             xpos = row['Xpos']
+#             ypos = row['Ypos']
+#             if xpos > 4088+2*gpad or ypos > 4088+2*gpad:
+#                 print(xpos,ypos,'out of bounds position')
+#             xp = int(xpos)
+#             yp = int(ypos)
+#             xoff = 0#xpos-xp
+#             yoff = 0#ypos-yp
+#             sp = imflux*conv_prof
+#             fov_pixels = pad-1
+#             full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
     
     
     phdu = fits.PrimaryHDU()
@@ -408,7 +408,7 @@ for i in tqdm(range(0,ngal)):
     mag = row['mag']
     imflux = iu.mag2flux(mag)#imflux = row['flux']
     #make image, put it in seg
-    #full_image = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)))
+    full_image = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)))
     full_seg = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)),dtype=int)
     thresh = 0.01 #threshold flux for segmentation map
     N = 0
@@ -427,30 +427,32 @@ for i in tqdm(range(0,ngal)):
     yoff = 0#ypos-yp
     sp = imflux*conv_prof
     fov_pixels = pad-1
-    #full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
-    #masked_im = full_image[pad:-pad,pad:-pad]
+    full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
+    masked_im = full_image[pad:-pad,pad:-pad]
     #copying from process_ref_file in grizli
-    #roman.direct.data['REF'] = np.asarray(masked_im,dtype=np.float32)
-    #roman.direct.data['REF'] *= roman.direct.ref_photflam
+    roman.direct.data['REF'] = np.asarray(masked_im,dtype=np.float32)
+    roman.direct.data['REF'] *= roman.direct.ref_photflam
     
     selseg = sp > thresh
-    print('number of pixels above threshold '+str(np.sum(selseg)))
-    full_seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels][selseg] = photid
-    masked_seg = full_seg[pad:-pad,pad:-pad]
-    roman.seg = np.asarray(masked_seg,dtype=np.float32)
-    
-    #get sed and convert to spectrum
-    sim_fn = mockdir+'galacticus_FOV_EVERY100_sub_'+str(row['SIM'])+'.hdf5'
-    sim = h5py.File(sim_fn, 'r')
-    sed = sim['Outputs']['SED:observed:dust:Av1.6523'][row['IDX']]
-    flux = sed[sel_wave]
-    gal_spec = S.ArraySpectrum(wave=wave, flux=flux, waveunits="angstroms", fluxunits="flam")
-    spec = gal_spec.renorm(mag, "abmag", bp)
-    spec.convert("flam")
-    
-    roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=True, store=False,
-                               is_cgs=True, spectrum_1d=[spec.wave, spec.flux])
-
+    if np.sum(selseg) > 0:
+    #print('number of pixels above threshold '+str(np.sum(selseg)))
+		full_seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels][selseg] = photid
+		masked_seg = full_seg[pad:-pad,pad:-pad]
+		roman.seg = np.asarray(masked_seg,dtype=np.float32)
+		
+		#get sed and convert to spectrum
+		sim_fn = mockdir+'galacticus_FOV_EVERY100_sub_'+str(row['SIM'])+'.hdf5'
+		sim = h5py.File(sim_fn, 'r')
+		sed = sim['Outputs']['SED:observed:dust:Av1.6523'][row['IDX']]
+		flux = sed[sel_wave]
+		gal_spec = S.ArraySpectrum(wave=wave, flux=flux, waveunits="angstroms", fluxunits="flam")
+		spec = gal_spec.renorm(mag, "abmag", bp)
+		spec.convert("flam")
+		
+		roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=True, store=False,
+								   is_cgs=True, spectrum_1d=[spec.wave, spec.flux])
+    else:
+        print('no pixels above threshold')
 print(roman.model.shape)
 
 plt.imshow(roman.model, vmax=0.2, cmap="hot")
