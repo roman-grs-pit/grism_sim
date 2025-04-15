@@ -18,6 +18,7 @@ UserWarning: No thermal tables found, no thermal calculations can be performed. 
 
 '''
 from tqdm import tqdm
+import h5py
 import numpy as np
 from scipy import signal
 from astropy.io import fits
