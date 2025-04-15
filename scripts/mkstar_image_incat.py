@@ -250,6 +250,32 @@ if args.mkdirect == 'y':
         #if N//10 == N/10:
         #    print(N,Ntot,len(np.unique(full_seg)),i+1)
     
+    if ngal > 0:
+        testprof = np.zeros((4,4))
+        print('adding galaxies to reference image')
+        for i in tqdm(range(0,ngal)):
+            row = gals[i]
+            mag = row['mag']
+            imflux = row['flux']
+            #make image, put it in reference
+            if args.fast_direct == 'y':
+                conv_prof = signal.convolve2d(fid_psf[0].data,testprof,mode='same')
+            else:
+                print('need to write something for non-fixed psf')
+                break
+            xpos = row['Xpos']
+            ypos = row['Ypos']
+            if xpos > 4088+2*gpad or ypos > 4088+2*gpad:
+                print(xpos,ypos,'out of bounds position')
+            xp = int(xpos)
+            yp = int(ypos)
+            xoff = 0#xpos-xp
+            yoff = 0#ypos-yp
+            sp = imflux*conv_prof
+            fov_pixels = pad-1
+            full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
+    
+    
     phdu = fits.PrimaryHDU()
     ihdu = fits.ImageHDU(data=full_image,name='SCI')
     err_array = np.zeros(full_image.shape) #this gets over-written for cut image currently, 0s are bad for grizli if it actually gets used
@@ -376,8 +402,8 @@ for i in tqdm(range(0,ngal)):
     row = gals[i]
     mag = row['mag']
     imflux = row['flux']
-    #make image, put it in reference
-    full_image = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)))
+    #make image, put it in seg
+    #full_image = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)))
     full_seg = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)),dtype=int)
     thresh = 0.01 #threshold flux for segmentation map
     N = 0
@@ -396,11 +422,11 @@ for i in tqdm(range(0,ngal)):
     yoff = 0#ypos-yp
     sp = imflux*conv_prof
     fov_pixels = pad-1
-    full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
-    masked_im = full_image[pad:-pad,pad:-pad]
+    #full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
+    #masked_im = full_image[pad:-pad,pad:-pad]
     #copying from process_ref_file in grizli
-    roman.direct.data['REF'] = np.asarray(masked_im,dtype=np.float32)
-    roman.direct.data['REF'] *= roman.direct.ref_photflam
+    #roman.direct.data['REF'] = np.asarray(masked_im,dtype=np.float32)
+    #roman.direct.data['REF'] *= roman.direct.ref_photflam
     
     selseg = sp > thresh
     full_seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels][selseg] = photid
