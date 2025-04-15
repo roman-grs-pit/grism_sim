@@ -52,6 +52,7 @@ parser.add_argument("--pad", help="padding in pixels to add to image", default=3
 parser.add_argument("--det", help="detector to simulate", default=1, type=int)
 parser.add_argument("--center",help="telescope boresight (tel) or center of detector (det)",default='det')
 parser.add_argument("--ngal",help="number of galaxies to simulate; all if None",default=None)
+parser.add_argument("--magmax",help="magnitude to clip at",default=25,type=float)
 #These were used at first but should not be necessary, keeping for future debugging
 #parser.add_argument("--input_star_fn", help="full path to file containing info on stars to simulate",default=os.getenv('github_dir')+'star_fields/py/stars_radec00.ecsv')
 #parser.add_argument("--roman_base_dir", help="base directory for roman calibration files",default=os.getenv('roman_base_dir'))
@@ -191,8 +192,8 @@ mag = abM+5*np.log10(lum_distance*1e6) - 5 - 2.5*np.log10(1+gals['Z'])
 #mag = -2.5*np.log10(flux)+26.5
 gals['mag'] = mag
 #gal_xy = gal_xy[sel_ondet]
-#sel_mag = mag < 27
-#gals = gals[sel_mag]
+sel_mag = mag < args.magmax
+gals = gals[sel_mag]
 ngal = args.ngal
 if ngal is None:
     ngal = len(gals)
@@ -420,8 +421,8 @@ for i in tqdm(range(0,ngal)):
         break
     xpos = row['Xpos']
     ypos = row['Ypos']
-    if xpos > 4088+2*gpad or ypos > 4088+2*gpad:
-        print(xpos,ypos,'out of bounds position')
+    #if xpos > 4088+2*gpad or ypos > 4088+2*gpad:
+    #    print(xpos,ypos,'out of bounds position')
     xp = int(xpos)
     yp = int(ypos)
     xoff = 0#xpos-xp
