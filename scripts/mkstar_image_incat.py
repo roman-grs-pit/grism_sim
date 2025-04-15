@@ -90,8 +90,8 @@ if args.ngal is not None:
     ngal = int(args.ngal)
 
 mockdir = '/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/'
-if ngal != 0:
-    input_gal_fn = mockdir+'Euclid_Roman_4deg2_radec.fits' #this is only on NERSC for now
+#if ngal != 0:
+input_gal_fn = mockdir+'Euclid_Roman_4deg2_radec.fits' #this is only on NERSC for now
 
 
 pad = args.pad #user supplied padding, corresponding to the size in pixels for the psf and thus the size of each object in the direct image
@@ -159,37 +159,37 @@ Ntot= len(stars00)
 
 print(star_xy[0][sel_ondet].shape)
 
-if ngal != 0:
-    h=0.6774
-    Mpc = 3.08568025E24 # cm
-    from astropy.cosmology import FlatLambdaCDM
-    cosmo = FlatLambdaCDM(H0=100*h, Om0=0.3089, Tcmb0=2.725)
-    
-    
-    gals = fits.open(input_gal_fn)[1].data
-    
-    gal_coords = SkyCoord(ra=gals['RA']*u.degree,dec=gals['DEC']*u.degree, frame='icrs')
-    gal_xy = im_wcs.world_to_pixel(star_coords)
-    print('range of x y values in input galaxy catalog:')
-    print(min(gal_xy[0]),max(gal_xy[0]),min(gal_xy[1]),max(gal_xy[1]))
+#if ngal != 0:
+h=0.6774
+Mpc = 3.08568025E24 # cm
+from astropy.cosmology import FlatLambdaCDM
+cosmo = FlatLambdaCDM(H0=100*h, Om0=0.3089, Tcmb0=2.725)
 
-    sel_ondet = gal_xy[0] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
-    sel_ondet &= gal_xy[0] < 4088 + 2*( gpad)
-    sel_ondet &= gal_xy[1] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
-    sel_ondet &= gal_xy[1] < 4088 + 2*( gpad)
-    gals = Table(gals[sel_ondet])
-    gals['Xpos'] = gal_xy[0][sel_ondet]
-    gals['Ypos'] = gal_xy[1][sel_ondet]
-    lum_distance = cosmo.luminosity_distance(gals['Z']).value
-    lum_distance_cm = lum_distance*Mpc # cm
-    flux = gals['tot_Lum_F158_Av1.6523']/(4.0*np.pi*lum_distance_cm**2.0)
-    gals['flux'] = flux
-    mag = -2.5*np.log10(flux)+26.5
-    gals['mag'] = mag
-    #gal_xy = gal_xy[sel_ondet]
-    if ngal is None:
-        ngal = len(gals)
-    print('number of galaxies within detector padded region is '+str(ngal))
+
+gals = fits.open(input_gal_fn)[1].data
+
+gal_coords = SkyCoord(ra=gals['RA']*u.degree,dec=gals['DEC']*u.degree, frame='icrs')
+gal_xy = im_wcs.world_to_pixel(star_coords)
+print('range of x y values in input galaxy catalog:')
+print(min(gal_xy[0]),max(gal_xy[0]),min(gal_xy[1]),max(gal_xy[1]))
+
+sel_ondet = gal_xy[0] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
+sel_ondet &= gal_xy[0] < 4088 + 2*( gpad)
+sel_ondet &= gal_xy[1] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
+sel_ondet &= gal_xy[1] < 4088 + 2*( gpad)
+gals = Table(gals[sel_ondet])
+gals['Xpos'] = gal_xy[0][sel_ondet]
+gals['Ypos'] = gal_xy[1][sel_ondet]
+lum_distance = cosmo.luminosity_distance(gals['Z']).value
+lum_distance_cm = lum_distance*Mpc # cm
+flux = gals['tot_Lum_F158_Av1.6523']/(4.0*np.pi*lum_distance_cm**2.0)
+gals['flux'] = flux
+mag = -2.5*np.log10(flux)+26.5
+gals['mag'] = mag
+#gal_xy = gal_xy[sel_ondet]
+if ngal is None:
+    ngal = len(gals)
+print('number of galaxies within detector padded region is '+str(ngal))
 
 
 
