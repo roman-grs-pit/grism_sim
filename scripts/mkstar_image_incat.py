@@ -169,7 +169,7 @@ cosmo = FlatLambdaCDM(H0=100*h, Om0=0.3089, Tcmb0=2.725)
 gals = fits.open(input_gal_fn)[1].data
 
 gal_coords = SkyCoord(ra=gals['RA']*u.degree,dec=gals['DEC']*u.degree, frame='icrs')
-gal_xy = im_wcs.world_to_pixel(star_coords)
+gal_xy = im_wcs.world_to_pixel(gal_coords)
 print('range of x y values in input galaxy catalog:')
 print(min(gal_xy[0]),max(gal_xy[0]),min(gal_xy[1]),max(gal_xy[1]))
 
