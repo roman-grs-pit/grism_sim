@@ -396,7 +396,7 @@ for i in tqdm(range(0,len(stars00))):
     count += 1
     #print(count)
 
-testprof = np.zeros((4,4)) #just something that is not a pointsource, this should get much better
+testprof = np.ones((4,4)) #just something that is not a pointsource, this should get much better
 wave = np.linspace(2000, 40000, 19001) #wavelength grid for simulation
 sel_wave = wave > minlam
 sel_wave &= wave < maxlam
