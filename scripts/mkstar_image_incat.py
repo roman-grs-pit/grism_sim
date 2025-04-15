@@ -192,7 +192,7 @@ mag = abM+5*np.log10(lum_distance*1e6) - 5 - 2.5*np.log10(1+gals['Z'])
 gals['mag'] = mag
 #gal_xy = gal_xy[sel_ondet]
 #sel_mag = mag < 27
-gals = gals[sel_mag]
+#gals = gals[sel_mag]
 ngal = args.ngal
 if ngal is None:
     ngal = len(gals)
