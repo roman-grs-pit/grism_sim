@@ -401,6 +401,7 @@ wave = np.linspace(2000, 40000, 19001) #wavelength grid for simulation
 sel_wave = wave > minlam
 sel_wave &= wave < maxlam
 wave = wave[sel_wave]
+conv_prof_fixed = signal.convolve2d(fid_psf[0].data,testprof,mode='same')
     
 for i in tqdm(range(0,ngal)):
     photid += 1
@@ -413,7 +414,7 @@ for i in tqdm(range(0,ngal)):
     thresh = 0.01 #threshold flux for segmentation map
     N = 0
     if args.fast_direct == 'y':
-        conv_prof = signal.convolve2d(fid_psf[0].data,testprof,mode='same')
+        conv_prof = conv_prof_fixed#signal.convolve2d(fid_psf[0].data,testprof,mode='same')
     else:
         print('need to write something for non-fixed psf')
         break
