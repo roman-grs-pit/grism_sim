@@ -48,6 +48,7 @@ parser.add_argument("--out_fn", help="output file name, written to star_image_di
 parser.add_argument("--pad", help="padding in pixels to add to image", default=365, type=int)
 parser.add_argument("--det", help="detector to simulate", default=1, type=int)
 parser.add_argument("--center",help="telescope boresight (tel) or center of detector (det)",default='det')
+parser.add_argument("--ngal",help="number of galaxies to simulate; all if None",default=None)
 #These were used at first but should not be necessary, keeping for future debugging
 #parser.add_argument("--input_star_fn", help="full path to file containing info on stars to simulate",default=os.getenv('github_dir')+'star_fields/py/stars_radec00.ecsv')
 #parser.add_argument("--roman_base_dir", help="base directory for roman calibration files",default=os.getenv('roman_base_dir'))
@@ -83,6 +84,14 @@ with open(conf_file) as f:
     grizli_conf = yaml.safe_load(f)
 
 input_star_fn = os.path.join(github_dir, 'star_fields/py/stars_radec00.ecsv') #this was produced by the script in star_fields
+
+if args.ngal is not None:
+    ngal = int(args.ngal)
+
+mockdir = '/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/'
+if ngal != 0:
+    input_gal_fn = mockdir+'Euclid_Roman_4deg2_radec.fits' #this is only on NERSC for now
+
 
 pad = args.pad #user supplied padding, corresponding to the size in pixels for the psf and thus the size of each object in the direct image
 gpad = grizli_conf["pad"] #grism padding needed based on configuration yaml
@@ -140,6 +149,7 @@ sel_ondet &= star_xy[0] < 4088 + 2*( gpad)
 sel_ondet &= star_xy[1] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
 sel_ondet &= star_xy[1] < 4088 + 2*( gpad)
 
+print('cutting stars to be on detector + padded area')
 stars00 = stars00[sel_ondet]
 print(stars00['Xpos'].shape)
 stars00['Xpos'] = star_xy[0][sel_ondet]
@@ -147,6 +157,38 @@ stars00['Ypos'] = star_xy[1][sel_ondet]
 Ntot= len(stars00)
 
 print(star_xy[0][sel_ondet].shape)
+
+if ngal != 0:
+    h=0.6774
+    Mpc = 3.08568025E24 # cm
+    from astropy.cosmology import FlatLambdaCDM
+    cosmo = FlatLambdaCDM(H0=100*h, Om0=0.3089, Tcmb0=2.725)
+    
+    
+    gals = fits.open(input_gal_fn)[1].data
+    
+    gal_coords = SkyCoord(ra=gals['RA']*u.degree,dec=gals['DEC']*u.degree, frame='icrs')
+    gal_xy = im_wcs.world_to_pixel(star_coords)
+    print('range of x y values in input galaxy catalog:')
+    print(min(gal_xy[0]),max(gal_xy[0]),min(gal_xy[1]),max(gal_xy[1]))
+
+    sel_ondet = gal_xy[0] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
+    sel_ondet &= gal_xy[0] < 4088 + 2*( gpad)
+    sel_ondet &= gal_xy[1] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
+    sel_ondet &= gal_xy[1] < 4088 + 2*( gpad)
+    gals = Table(gals[sel_ondet])
+    gals['Xpos'] = gal_xy[0][sel_ondet]
+    gals['Ypos'] = gal_xy[1][sel_ondet]
+    lum_distance = cosmo.luminosity_distance(gals['Z']).value
+    lum_distance_cm = lum_distance*Mpc # cm
+    flux = gals['tot_Lum_F158_Av1.6523']/(4.0*np.pi*lum_distance_cm**2.0)
+    gals['flux'] = flux
+    mag = -2.5*np.log10(flux)+26.5
+    gals['mag'] = mag
+    #gal_xy = gal_xy[sel_ondet]
+    if ngal is None:
+        ngal = len(gals)
+    print('number of galaxies within detector padded region is '+str(ngal))
 
 
 
@@ -317,6 +359,60 @@ for i in range(0,len(stars00)):
                                is_cgs=True, spectrum_1d=[spec.wave, spec.flux])
     count += 1
     #print(count)
+
+testprof = np.zeros((4,4)) #just something that is not a pointsource, this should get much better
+wave = np.linspace(2000, 40000, 19001) #wavelength grid for simulation
+sel_wave = wave > minlam
+sel_wave &= wave < maxlam
+wave = wave[sel_wave]
+    
+for i in range(0,ngal):
+    photid += 1
+    row = gals[i]
+    mag = row['mag']
+    imflux = row['flux']
+    #make image, put it in reference
+    full_image = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)))
+    full_seg = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)),dtype=int)
+    thresh = 0.01 #threshold flux for segmentation map
+    N = 0
+    if args.fast_direct == 'y':
+        conv_prof = signal.convolve2d(fid_psf,testprof,mode='same')
+    else:
+        print('need to write something for non-fixed psf')
+        break
+    xpos = row['Xpos']
+    ypos = row['Ypos']
+    if xpos > 4088+2*gpad or ypos > 4088+2*gpad:
+        print(xpos,ypos,'out of bounds position')
+    xp = int(xpos)
+    yp = int(ypos)
+    xoff = 0#xpos-xp
+    yoff = 0#ypos-yp
+    sp = imflux*conv_prof
+    fov_pixels = pad-1
+    full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
+    masked_im = full_image[pad:-pad,pad:-pad]
+    #copying from process_ref_file in grizli
+    roman.direct.data['REF'] = masked_im
+    roman.direct.data['REF'] *= roman.direct.ref_photflam
+    
+    selseg = sp > thresh
+    full_seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels][selseg] = photid
+    masked_seg = full_seg[pad:-pad,pad:-pad]
+    roman.seg = masked_seg.astype("float32")
+    
+    #get sed and convert to spectrum
+    sim_fn = mockdir+'galacticus_FOV_EVERY100_sub_'+str(row['SIM'])+'.hdf5'
+    sim = h5py.File(sim_fn, 'r')
+    sed = sim['Outputs']['SED:observed:dust:Av1.6523'][row['IDX']]
+    flux = sed[sel_wave]
+    gal_spec = S.ArraySpectrum(wave=wave, flux=flux, waveunits="angstroms", fluxunits="flam")
+    spec = gal_spec.renorm(mag, "abmag", bp)
+    spec.convert("flam")
+    
+    roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=True, store=False,
+                               is_cgs=True, spectrum_1d=[spec.wave, spec.flux])
 
 print(roman.model.shape)
 
