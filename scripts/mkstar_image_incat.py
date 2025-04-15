@@ -17,6 +17,7 @@ UserWarning: No thermal tables found, no thermal calculations can be performed. 
 ## The extinction and mtab folder can be found here: https://pysynphot.readthedocs.io/en/stable/ but do not seem to be necessary at the moment.
 
 '''
+from tqdm import tqdm
 import numpy as np
 from scipy import signal
 from astropy.io import fits
@@ -218,7 +219,7 @@ if args.mkdirect == 'y':
     if args.fast_direct == 'y':
         fid_psf = iu.get_psf(fov_pixels=pad-1, det=det)
     #stars00 = Table.read(args.input_star_fn)
-    for i in range(0,len(stars00)):
+    for i in tqdm(range(0,len(stars00))):
         xpos = stars00[i]['Xpos']
         ypos = stars00[i]['Ypos']
         #print(xpos,ypos)
@@ -244,9 +245,9 @@ if args.mkdirect == 'y':
         full_seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels][selseg] = i+1#seg 
         #sel = full_seg != i+1
         #full_seg[sel] = full_segold[sel]
-        N += 1
-        if N//10 == N/10:
-            print(N,Ntot,len(np.unique(full_seg)),i+1)
+        #N += 1
+        #if N//10 == N/10:
+        #    print(N,Ntot,len(np.unique(full_seg)),i+1)
     
     phdu = fits.PrimaryHDU()
     ihdu = fits.ImageHDU(data=full_image,name='SCI')
@@ -337,7 +338,7 @@ temp_inds = stars00['star_template_index'] - 58*(stars00['star_template_index']/
 
 count = 0
 print('about to simulate grism')
-for i in range(0,len(stars00)):
+for i in tqdm(range(0,len(stars00))):
     photid = i+1
     row = stars00[i]
     mag = row["magnitude"]
@@ -369,7 +370,7 @@ sel_wave = wave > minlam
 sel_wave &= wave < maxlam
 wave = wave[sel_wave]
     
-for i in range(0,ngal):
+for i in tqdm(range(0,ngal)):
     photid += 1
     row = gals[i]
     mag = row['mag']
@@ -380,7 +381,7 @@ for i in range(0,ngal):
     thresh = 0.01 #threshold flux for segmentation map
     N = 0
     if args.fast_direct == 'y':
-        conv_prof = signal.convolve2d(fid_psf,testprof,mode='same')
+        conv_prof = signal.convolve2d(fid_psf[0].data,testprof,mode='same')
     else:
         print('need to write something for non-fixed psf')
         break
