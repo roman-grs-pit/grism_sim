@@ -45,8 +45,8 @@ parser.add_argument("--fast_direct", help="if y, a single PSF is used over the w
 parser.add_argument("--checkseg", help="check whether segmentation maps lines up properly", default='n')
 
 parser.add_argument("--github_dir", help="path to directory where Roman GRS PIT github repos have been cloned; assumes it is the same for all", default=os.getenv('github_dir'))
-parser.add_argument("--star_image_dir", help="directory to save star image and grism files", default='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/')
-parser.add_argument("--mockdir", help="directory for galacticus mocks; defaults to location on NERSC", default=os.getenv('star_image_dir'))
+parser.add_argument("--star_image_dir", help="directory to save star image and grism files", default=os.getenv('star_image_dir'))
+parser.add_argument("--mockdir", help="directory for galacticus mocks; defaults to location on NERSC", default='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/')
 parser.add_argument("--out_fn", help="output file name, written to star_image_dir", default='grism_test.fits')
 # might need to make this a prefix if we want to propagate the SCA informations
 parser.add_argument("--pad", help="padding in pixels to add to image", default=365, type=int)
