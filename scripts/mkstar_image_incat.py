@@ -231,6 +231,8 @@ file[1].header["CONFFILE"] = os.path.join(github_dir, "grism_sim/data/Roman.det%
 file.writeto(empty_grism, overwrite=True)
 file.close()
 
+
+fid_psf = iu.get_psf(fov_pixels=pad-1, det=det)
 r_eff = 4 #radius for profile in pixels
 x, y = np.meshgrid(np.arange(-15,15), np.arange(-15,15)) #30x30 grid of pixels
 from astropy.modeling.models import Sersic2D
@@ -242,15 +244,12 @@ conv_prof_fixed = signal.convolve2d(fid_psf[0].data,testprof,mode='same')
 
 
 if args.mkdirect == 'y':
-    #This takes ~6 minutes and is by far the greatest processing time
-    #The time is dominated by calculating the PSF for each object...should switch to using  a grid: https://webbpsf.readthedocs.io/en/latest/psf_grids.html
-    #If you see obvious ways to speed it up, please test their implementation and make PR!
     full_image = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)))
     full_seg = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)),dtype=int)
     thresh = 0.01 #threshold flux for segmentation map
     N = 0
-    if args.fast_direct == 'y':
-        fid_psf = iu.get_psf(fov_pixels=pad-1, det=det)
+    #if args.fast_direct == 'y':
+    #    fid_psf = iu.get_psf(fov_pixels=pad-1, det=det)
     #stars00 = Table.read(args.input_star_fn)
     for i in tqdm(range(0,len(stars00))):
         xpos = stars00[i]['Xpos']
