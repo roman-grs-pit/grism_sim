@@ -1,6 +1,6 @@
 '''
 #Usage: create direct image of star field and then simulate a grism image for it
-#Example call: python $github_dir/grism_sim/scripts/mkstar_image.py
+#Example call: python $github_dir/grism_sim/scripts/mkstar_image_incat.py
 #Requirements: grizli (and all of its dependencies); A clone of the roman-grs-pit star_fields repo in the same relative path
 #Will produce a plot and save the corresponding direct and grism images
 #A successful run should demonstrate that basic Roman GRS simulation capabilities have been installed properly and give one an idea on how to produce more/better simulations
@@ -40,6 +40,9 @@ import yaml
 
 import argparse
 parser = argparse.ArgumentParser()
+parser.add_argument("--ra",help='right ascension at center defined below',default=10,type=float)
+parser.add_argument("--dec",help='declination at center defined below',default=0,type=float)
+parser.add_argument("--pa",help='position angle of the telescope',default=0,type=float)
 parser.add_argument("--mkdirect", help="whether to make the direct image or not", default='y')
 parser.add_argument("--fast_direct", help="if y, a single PSF is used over the whole detector when making the direct image", default='y')
 parser.add_argument("--checkseg", help="check whether segmentation maps lines up properly", default='n')
@@ -53,6 +56,7 @@ parser.add_argument("--pad", help="padding in pixels to add to image", default=3
 parser.add_argument("--det", help="detector to simulate", default=1, type=int)
 parser.add_argument("--center",help="telescope boresight (tel) or center of detector (det)",default='det')
 parser.add_argument("--ngal",help="number of galaxies to simulate; all if None",default=None)
+parser.add_argument("--dogal",help="whether to simulate galaxies",default='y')
 parser.add_argument("--magmax",help="magnitude to clip at",default=25,type=float)
 #These were used at first but should not be necessary, keeping for future debugging
 #parser.add_argument("--input_star_fn", help="full path to file containing info on stars to simulate",default=os.getenv('github_dir')+'star_fields/py/stars_radec00.ecsv')
@@ -88,11 +92,14 @@ conf_file = os.path.join(github_dir, "grism_sim/data/grizli_config.yaml")
 with open(conf_file) as f:
     grizli_conf = yaml.safe_load(f)
 
-input_star_fn = os.path.join(github_dir, 'star_fields/py/stars_radec00.ecsv') #this was produced by the script in star_fields
+#input_star_fn = os.path.join(github_dir, 'star_fields/py/stars_radec00.ecsv') #this was produced by the script in star_fields
+input_star_fn = os.path.join(github_dir, 'star_fields/data/sim_star_cat_galacticus.txt') #this was produced by the script in star_fields
 
 if args.ngal is not None:
     ngal = int(args.ngal)
 
+if args.dogal == 'n':
+    ngal = 0
 
 mockdir = args.mockdir#'/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/'
 #if ngal != 0:
@@ -120,8 +127,8 @@ pad_seg = os.path.join(star_image_dir, "seg_wpad.fits")
 
 #this ends up setting the background noise and defines the WCS
 import grizli.fake_image
-ra, dec = 0, 0
-pa_aper = 128.589
+ra, dec = args.ra,args.dec
+pa_aper = args.pa#128.589
 background = grizli_conf["grism_background"]
 EXPTIME = 301 
 NEXP = 1     
@@ -143,7 +150,14 @@ tot_im_size = 4088+2*(gpad+pad)
 im_head = iu.fake_header_wcs(ra, dec, crpix2=tot_im_size/2,crpix1=tot_im_size/2, cdelt1=0.11, cdelt2=0.11,crota2=pa_aper,naxis1=tot_im_size,naxis2=tot_im_size)
 im_wcs = WCS(im_head)
 
-stars00 = Table.read(input_star_fn)
+#stars00 = Table.read(input_star_fn)
+
+stars00 = Table()
+d = np.loadtxt(input_star_fn).transpose()
+stars00['RA'] = d[-2]
+stars00['DEC'] = d[-1]
+stars00['magnitude'] = d[2]
+stars00['star_template_index'] = d[1]
 
 star_coords = coords_test = SkyCoord(ra=stars00['RA']*u.degree,dec=stars00['DEC']*u.degree, frame='icrs')
 star_xy = im_wcs.world_to_pixel(star_coords)
@@ -157,51 +171,51 @@ sel_ondet &= star_xy[1] < 4088 + 2*( gpad)
 
 print('cutting stars to be on detector + padded area')
 stars00 = stars00[sel_ondet]
-print(stars00['Xpos'].shape)
+#print(stars00['Xpos'].shape)
 stars00['Xpos'] = star_xy[0][sel_ondet]
 stars00['Ypos'] = star_xy[1][sel_ondet]
 Ntot= len(stars00)
 
 print(star_xy[0][sel_ondet].shape)
 
-#if ngal != 0:
-h=0.6774
-Mpc = 3.08568025E24 # cm
-from astropy.cosmology import FlatLambdaCDM
-cosmo = FlatLambdaCDM(H0=100*h, Om0=0.3089, Tcmb0=2.725)
-
-
-gals = fits.open(input_gal_fn)[1].data
-ra_off = 10 #adding this in to center on 0,0 for now
-gal_coords = SkyCoord(ra=(gals['RA']-ra_off)*u.degree,dec=gals['DEC']*u.degree, frame='icrs')
-gal_xy = im_wcs.world_to_pixel(gal_coords)
-print('range of x y values in input galaxy catalog:')
-print(min(gal_xy[0]),max(gal_xy[0]),min(gal_xy[1]),max(gal_xy[1]))
-
-sel_ondet = gal_xy[0] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
-sel_ondet &= gal_xy[0] < 4088 + 2*( gpad)
-sel_ondet &= gal_xy[1] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
-sel_ondet &= gal_xy[1] < 4088 + 2*( gpad)
-gals = Table(gals[sel_ondet])
-gals['Xpos'] = gal_xy[0][sel_ondet]
-gals['Ypos'] = gal_xy[1][sel_ondet]
-lum_distance = cosmo.luminosity_distance(gals['Z']).value
-abM = -2.5*np.log10(gals['tot_Lum_F184_Av1.6523'])
-mag = abM+5*np.log10(lum_distance*1e6) - 5 - 2.5*np.log10(1+gals['Z'])
-#lum_distance_cm = lum_distance*Mpc # cm
-#flux = gals['tot_Lum_F158_Av1.6523']/(4.0*np.pi*lum_distance_cm**2.0)
-#gals['flux'] = flux
-#mag = -2.5*np.log10(flux)+26.5
-gals['mag'] = mag
-#gal_xy = gal_xy[sel_ondet]
-sel_mag = mag < args.magmax
-gals = gals[sel_mag]
-ngal = args.ngal
-if ngal is None:
-    ngal = len(gals)
-
-ngal = int(ngal)
-print('number of galaxies within detector padded region is '+str(ngal))
+if args.dogal == 'y':
+	h=0.6774
+	Mpc = 3.08568025E24 # cm
+	from astropy.cosmology import FlatLambdaCDM
+	cosmo = FlatLambdaCDM(H0=100*h, Om0=0.3089, Tcmb0=2.725)
+	
+	
+	gals = fits.open(input_gal_fn)[1].data
+	#ra_off = 10 #adding this in to center on 0,0 for now
+	gal_coords = SkyCoord(ra=(gals['RA']-ra_off)*u.degree,dec=gals['DEC']*u.degree, frame='icrs')
+	gal_xy = im_wcs.world_to_pixel(gal_coords)
+	print('range of x y values in input galaxy catalog:')
+	print(min(gal_xy[0]),max(gal_xy[0]),min(gal_xy[1]),max(gal_xy[1]))
+	
+	sel_ondet = gal_xy[0] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
+	sel_ondet &= gal_xy[0] < 4088 + 2*( gpad)
+	sel_ondet &= gal_xy[1] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
+	sel_ondet &= gal_xy[1] < 4088 + 2*( gpad)
+	gals = Table(gals[sel_ondet])
+	gals['Xpos'] = gal_xy[0][sel_ondet]
+	gals['Ypos'] = gal_xy[1][sel_ondet]
+	lum_distance = cosmo.luminosity_distance(gals['Z']).value
+	abM = -2.5*np.log10(gals['tot_Lum_F184_Av1.6523'])
+	mag = abM+5*np.log10(lum_distance*1e6) - 5 - 2.5*np.log10(1+gals['Z'])
+	#lum_distance_cm = lum_distance*Mpc # cm
+	#flux = gals['tot_Lum_F158_Av1.6523']/(4.0*np.pi*lum_distance_cm**2.0)
+	#gals['flux'] = flux
+	#mag = -2.5*np.log10(flux)+26.5
+	gals['mag'] = mag
+	#gal_xy = gal_xy[sel_ondet]
+	sel_mag = mag < args.magmax
+	gals = gals[sel_mag]
+	ngal = args.ngal
+	if ngal is None:
+		ngal = len(gals)
+	
+	ngal = int(ngal)
+	print('number of galaxies within detector padded region is '+str(ngal))
 
 
 
