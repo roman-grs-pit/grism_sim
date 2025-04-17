@@ -231,6 +231,15 @@ file[1].header["CONFFILE"] = os.path.join(github_dir, "grism_sim/data/Roman.det%
 file.writeto(empty_grism, overwrite=True)
 file.close()
 
+r_eff = 4 #radius for profile in pixels
+x, y = np.meshgrid(np.arange(-15,15), np.arange(-15,15)) #30x30 grid of pixels
+from astropy.modeling.models import Sersic2D
+round_exp = Sersic2D(amplitude=1, r_eff=r_eff,n=1) #round exponential 
+testprof = round_exp(x,y) #np.ones((4,4)) #just something that is not a pointsource, this should get much better
+testprof /= np.sum(testprof) #normalize the profile
+
+conv_prof_fixed = signal.convolve2d(fid_psf[0].data,testprof,mode='same')
+
 
 if args.mkdirect == 'y':
     #This takes ~6 minutes and is by far the greatest processing time
@@ -272,31 +281,33 @@ if args.mkdirect == 'y':
         #N += 1
         #if N//10 == N/10:
         #    print(N,Ntot,len(np.unique(full_seg)),i+1)
+
+
     
-#     if ngal > 0:
-#         testprof = np.ones((4,4))
-#         print('adding galaxies to reference image')
-#         for i in tqdm(range(0,ngal)):
-#             row = gals[i]
-#             mag = row['mag']
-#             imflux = iu.mag2flux(mag)#row['flux']
-#             #make image, put it in reference
-#             if args.fast_direct == 'y':
-#                 conv_prof = signal.convolve2d(fid_psf[0].data,testprof,mode='same')
-#             else:
-#                 print('need to write something for non-fixed psf')
-#                 break
-#             xpos = row['Xpos']
-#             ypos = row['Ypos']
-#             if xpos > 4088+2*gpad or ypos > 4088+2*gpad:
-#                 print(xpos,ypos,'out of bounds position')
-#             xp = int(xpos)
-#             yp = int(ypos)
-#             xoff = 0#xpos-xp
-#             yoff = 0#ypos-yp
-#             sp = imflux*conv_prof
-#             fov_pixels = pad-1
-#             full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
+	if ngal > 0:
+		testprof = np.ones((4,4))
+		print('adding galaxies to reference image')
+		for i in tqdm(range(0,ngal)):
+			row = gals[i]
+			mag = row['mag']
+			imflux = iu.mag2flux(mag)#row['flux']
+			#make image, put it in reference
+			#if args.fast_direct == 'y':
+			#	conv_prof = signal.convolve2d(fid_psf[0].data,testprof,mode='same')
+			#else:
+			#	print('need to write something for non-fixed psf')
+			#	break
+			xpos = row['Xpos']
+			ypos = row['Ypos']
+			if xpos > 4088+2*gpad or ypos > 4088+2*gpad:
+				print(xpos,ypos,'out of bounds position')
+			xp = int(xpos)
+			yp = int(ypos)
+			xoff = 0#xpos-xp
+			yoff = 0#ypos-yp
+			sp = imflux*conv_prof_fixed
+			fov_pixels = pad-1
+			full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
     
     
     phdu = fits.PrimaryHDU()
@@ -419,14 +430,6 @@ sel_wave = wave > minlam
 sel_wave &= wave < maxlam
 wave = wave[sel_wave]
 
-r_eff = 4 #radius for profile in pixels
-x, y = np.meshgrid(np.arange(-15,15), np.arange(-15,15)) #30x30 grid of pixels
-from astropy.modeling.models import Sersic2D
-round_exp = Sersic2D(amplitude=1, r_eff=r_eff,n=1) #round exponential 
-testprof = round_exp(x,y) #np.ones((4,4)) #just something that is not a pointsource, this should get much better
-testprof /= np.sum(testprof) #normalize the profile
-
-conv_prof_fixed = signal.convolve2d(fid_psf[0].data,testprof,mode='same')
     
 for i in tqdm(range(0,ngal)):
     photid += 1
@@ -456,8 +459,8 @@ for i in tqdm(range(0,ngal)):
     full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
     masked_im = full_image[pad:-pad,pad:-pad]
     #copying from process_ref_file in grizli
-    roman.direct.data['REF'] = np.asarray(masked_im,dtype=np.float32)
-    roman.direct.data['REF'] *= roman.direct.ref_photflam
+    #roman.direct.data['REF'] = np.asarray(masked_im,dtype=np.float32)
+    #roman.direct.data['REF'] *= roman.direct.ref_photflam
     
     selseg = sp > thresh
     #if np.sum(selseg) > 0:
