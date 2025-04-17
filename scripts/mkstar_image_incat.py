@@ -413,11 +413,17 @@ for i in tqdm(range(0,len(stars00))):
     count += 1
     #print(count)
 
-testprof = np.ones((4,4)) #just something that is not a pointsource, this should get much better
 wave = np.linspace(2000, 40000, 19001) #wavelength grid for simulation
 sel_wave = wave > minlam
 sel_wave &= wave < maxlam
 wave = wave[sel_wave]
+
+r_eff = 4 #radius for profile in pixels
+x, y = np.meshgrid(np.arange(-15,15), np.arange(-15,15)) #30x30 grid of pixels
+from astropy.modeling.models import Sersic2D
+round_exp = Sersic2D(amplitude=1, r_eff=r_eff,n=1) #round exponential 
+testprof = round_exp(x,y) #np.ones((4,4)) #just something that is not a pointsource, this should get much better
+
 conv_prof_fixed = signal.convolve2d(fid_psf[0].data,testprof,mode='same')
     
 for i in tqdm(range(0,ngal)):
