@@ -179,44 +179,44 @@ Ntot= len(stars00)
 print(star_xy[0][sel_ondet].shape)
 
 if args.dogal == 'y':
-	h=0.6774
-	Mpc = 3.08568025E24 # cm
-	from astropy.cosmology import FlatLambdaCDM
-	cosmo = FlatLambdaCDM(H0=100*h, Om0=0.3089, Tcmb0=2.725)
-	
-	
-	gals = fits.open(input_gal_fn)[1].data
-	#ra_off = 10 #adding this in to center on 0,0 for now
-	ra_off = 0
-	gal_coords = SkyCoord(ra=(gals['RA']-ra_off)*u.degree,dec=gals['DEC']*u.degree, frame='icrs')
-	gal_xy = im_wcs.world_to_pixel(gal_coords)
-	print('range of x y values in input galaxy catalog:')
-	print(min(gal_xy[0]),max(gal_xy[0]),min(gal_xy[1]),max(gal_xy[1]))
-	
-	sel_ondet = gal_xy[0] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
-	sel_ondet &= gal_xy[0] < 4088 + 2*( gpad)
-	sel_ondet &= gal_xy[1] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
-	sel_ondet &= gal_xy[1] < 4088 + 2*( gpad)
-	gals = Table(gals[sel_ondet])
-	gals['Xpos'] = gal_xy[0][sel_ondet]
-	gals['Ypos'] = gal_xy[1][sel_ondet]
-	lum_distance = cosmo.luminosity_distance(gals['Z']).value
-	abM = -2.5*np.log10(gals['tot_Lum_F184_Av1.6523'])
-	mag = abM+5*np.log10(lum_distance*1e6) - 5 - 2.5*np.log10(1+gals['Z'])
-	#lum_distance_cm = lum_distance*Mpc # cm
-	#flux = gals['tot_Lum_F158_Av1.6523']/(4.0*np.pi*lum_distance_cm**2.0)
-	#gals['flux'] = flux
-	#mag = -2.5*np.log10(flux)+26.5
-	gals['mag'] = mag
-	#gal_xy = gal_xy[sel_ondet]
-	sel_mag = mag < args.magmax
-	gals = gals[sel_mag]
-	ngal = args.ngal
-	if ngal is None:
-		ngal = len(gals)
-	
-	ngal = int(ngal)
-	print('number of galaxies within detector padded region is '+str(ngal))
+    h=0.6774
+    Mpc = 3.08568025E24 # cm
+    from astropy.cosmology import FlatLambdaCDM
+    cosmo = FlatLambdaCDM(H0=100*h, Om0=0.3089, Tcmb0=2.725)
+    
+    
+    gals = fits.open(input_gal_fn)[1].data
+    #ra_off = 10 #adding this in to center on 0,0 for now
+    ra_off = 0
+    gal_coords = SkyCoord(ra=(gals['RA']-ra_off)*u.degree,dec=gals['DEC']*u.degree, frame='icrs')
+    gal_xy = im_wcs.world_to_pixel(gal_coords)
+    print('range of x y values in input galaxy catalog:')
+    print(min(gal_xy[0]),max(gal_xy[0]),min(gal_xy[1]),max(gal_xy[1]))
+    
+    sel_ondet = gal_xy[0] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
+    sel_ondet &= gal_xy[0] < 4088 + 2*( gpad)
+    sel_ondet &= gal_xy[1] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
+    sel_ondet &= gal_xy[1] < 4088 + 2*( gpad)
+    gals = Table(gals[sel_ondet])
+    gals['Xpos'] = gal_xy[0][sel_ondet]
+    gals['Ypos'] = gal_xy[1][sel_ondet]
+    lum_distance = cosmo.luminosity_distance(gals['Z']).value
+    abM = -2.5*np.log10(gals['tot_Lum_F184_Av1.6523'])
+    mag = abM+5*np.log10(lum_distance*1e6) - 5 - 2.5*np.log10(1+gals['Z'])
+    #lum_distance_cm = lum_distance*Mpc # cm
+    #flux = gals['tot_Lum_F158_Av1.6523']/(4.0*np.pi*lum_distance_cm**2.0)
+    #gals['flux'] = flux
+    #mag = -2.5*np.log10(flux)+26.5
+    gals['mag'] = mag
+    #gal_xy = gal_xy[sel_ondet]
+    sel_mag = mag < args.magmax
+    gals = gals[sel_mag]
+    ngal = args.ngal
+    if ngal is None:
+        ngal = len(gals)
+    
+    ngal = int(ngal)
+    print('number of galaxies within detector padded region is '+str(ngal))
 
 
 
@@ -284,30 +284,30 @@ if args.mkdirect == 'y':
 
 
     
-	if ngal > 0:
-		testprof = np.ones((4,4))
-		print('adding galaxies to reference image')
-		for i in tqdm(range(0,ngal)):
-			row = gals[i]
-			mag = row['mag']
-			imflux = iu.mag2flux(mag)#row['flux']
-			#make image, put it in reference
-			#if args.fast_direct == 'y':
-			#	conv_prof = signal.convolve2d(fid_psf[0].data,testprof,mode='same')
-			#else:
-			#	print('need to write something for non-fixed psf')
-			#	break
-			xpos = row['Xpos']
-			ypos = row['Ypos']
-			if xpos > 4088+2*gpad or ypos > 4088+2*gpad:
-				print(xpos,ypos,'out of bounds position')
-			xp = int(xpos)
-			yp = int(ypos)
-			xoff = 0#xpos-xp
-			yoff = 0#ypos-yp
-			sp = imflux*conv_prof_fixed
-			fov_pixels = pad-1
-			full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
+    if ngal > 0:
+        testprof = np.ones((4,4))
+        print('adding galaxies to reference image')
+        for i in tqdm(range(0,ngal)):
+            row = gals[i]
+            mag = row['mag']
+            imflux = iu.mag2flux(mag)#row['flux']
+            #make image, put it in reference
+            #if args.fast_direct == 'y':
+            #   conv_prof = signal.convolve2d(fid_psf[0].data,testprof,mode='same')
+            #else:
+            #   print('need to write something for non-fixed psf')
+            #   break
+            xpos = row['Xpos']
+            ypos = row['Ypos']
+            if xpos > 4088+2*gpad or ypos > 4088+2*gpad:
+                print(xpos,ypos,'out of bounds position')
+            xp = int(xpos)
+            yp = int(ypos)
+            xoff = 0#xpos-xp
+            yoff = 0#ypos-yp
+            sp = imflux*conv_prof_fixed
+            fov_pixels = pad-1
+            full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
     
     
     phdu = fits.PrimaryHDU()
