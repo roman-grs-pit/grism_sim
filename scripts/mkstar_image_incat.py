@@ -424,6 +424,7 @@ x, y = np.meshgrid(np.arange(-15,15), np.arange(-15,15)) #30x30 grid of pixels
 from astropy.modeling.models import Sersic2D
 round_exp = Sersic2D(amplitude=1, r_eff=r_eff,n=1) #round exponential 
 testprof = round_exp(x,y) #np.ones((4,4)) #just something that is not a pointsource, this should get much better
+testprof /= np.sum(testprof) #normalize the profile
 
 conv_prof_fixed = signal.convolve2d(fid_psf[0].data,testprof,mode='same')
     
