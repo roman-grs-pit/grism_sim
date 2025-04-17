@@ -187,6 +187,7 @@ if args.dogal == 'y':
 	
 	gals = fits.open(input_gal_fn)[1].data
 	#ra_off = 10 #adding this in to center on 0,0 for now
+	ra_off = 0
 	gal_coords = SkyCoord(ra=(gals['RA']-ra_off)*u.degree,dec=gals['DEC']*u.degree, frame='icrs')
 	gal_xy = im_wcs.world_to_pixel(gal_coords)
 	print('range of x y values in input galaxy catalog:')
