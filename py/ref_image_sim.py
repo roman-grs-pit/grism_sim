@@ -20,7 +20,7 @@ import image_utils as iu
 
 import yaml
 
-github_dir_env=os.getenv['github_dir']
+github_dir_env=os.getenv('github_dir')
 if github_dir_env is None:
     print('github_dir environment variable has not been set, will cause problems if not explicitly set in function calss')
 
