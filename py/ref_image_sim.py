@@ -93,7 +93,7 @@ def mk_ref_image(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,psf_c
         gals['Xpos'] = gal_xy[0][sel_ondet]
         gals['Ypos'] = gal_xy[1][sel_ondet]
         gals.rename_column(gal_mag_col, 'mag')
-        sel_mag = mag < magmax
+        sel_mag = gals['mag'] < magmax
         gals = gals[sel_mag]
         ngal = len(gals)
         print('number of galaxies within detector padded region is '+str(ngal))
