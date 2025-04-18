@@ -24,7 +24,7 @@ for i in range(0,ndet):
     for pa,decoff in zip(pal,decoffl):
     	inds.append([ra,dec+decoff,pa,i+1])
 
-print('will simulate '+len(inds)+' grism images')
+print('will simulate '+str(len(inds))+' grism images')
     
 with Pool(processes=128) as pool:
     res = pool.map(dosim, inds)
