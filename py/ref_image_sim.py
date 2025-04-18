@@ -37,19 +37,19 @@ def mk_ref_image(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,psf_c
     pad = psf_cutout_size
     gpad = grizli_conf["pad"]
     fn_root = 'refimage_ra%s_dec%s_pa%s_det%s' % (tel_ra,tel_dec,pa,det)
-	direct_fits_out = os.path.join(output_dir,fn_root+'.fits' )
-	direct_fits_out_nopad = os.path.join(output_dir,fn_root+'_nopad.fits')
-	nopad_seg = os.path.join(output_dir,fn_root+ "_seg_nopad.fits")
-	pad_seg = oos.path.join(output_dir,fn_root+ "seg_wpad.fits")
-	#example_direct = args.roman_2022sim_dir + 'products/FOV0/roll_0/dither_0x_0y/SCA1/GRS_FOV0_roll0_dx0_dy0_SCA1_direct_final.fits'
-	
-	#this ends up setting the background noise and defines the WCS
-	
-	ra, dec = args.ra,args.dec
-	
-	background = grizli_conf["grism_background"]
-	EXPTIME = 301 
-	NEXP = 1     
+    direct_fits_out = os.path.join(output_dir,fn_root+'.fits' )
+    direct_fits_out_nopad = os.path.join(output_dir,fn_root+'_nopad.fits')
+    nopad_seg = os.path.join(output_dir,fn_root+ "_seg_nopad.fits")
+    pad_seg = oos.path.join(output_dir,fn_root+ "seg_wpad.fits")
+    #example_direct = args.roman_2022sim_dir + 'products/FOV0/roll_0/dither_0x_0y/SCA1/GRS_FOV0_roll0_dx0_dy0_SCA1_direct_final.fits'
+    
+    #this ends up setting the background noise and defines the WCS
+    
+    ra, dec = args.ra,args.dec
+    
+    background = grizli_conf["grism_background"]
+    EXPTIME = 301 
+    NEXP = 1     
 
     sys.path.append(github_dir+'/observing-program/py')
     import roman_coords_transform as ctrans
@@ -64,20 +64,20 @@ def mk_ref_image(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,psf_c
     im_head = iu.fake_header_wcs(ra, dec, crpix2=tot_im_size/2,crpix1=tot_im_size/2, cdelt1=0.11, cdelt2=0.11,crota2=pa,naxis1=tot_im_size,naxis2=tot_im_size)
     im_wcs = WCS(im_head)
 
-	star_coords = SkyCoord(ra=star_input['RA']*u.degree,dec=star_input['DEC']*u.degree, frame='icrs')
-	star_xy = im_wcs.world_to_pixel(star_coords)
-	
-	sel_ondet = star_xy[0] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
-	sel_ondet &= star_xy[0] < 4088 + 2*( gpad)
-	sel_ondet &= star_xy[1] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
-	sel_ondet &= star_xy[1] < 4088 + 2*( gpad)
-	
-	print('cutting stars to be on detector + padded area')
-	stars = star_input[sel_ondet]
-	#print(stars00['Xpos'].shape)
-	stars['Xpos'] = star_xy[0][sel_ondet]
-	stars['Ypos'] = star_xy[1][sel_ondet]
-	Ntot= len(stars)
+    star_coords = SkyCoord(ra=star_input['RA']*u.degree,dec=star_input['DEC']*u.degree, frame='icrs')
+    star_xy = im_wcs.world_to_pixel(star_coords)
+    
+    sel_ondet = star_xy[0] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
+    sel_ondet &= star_xy[0] < 4088 + 2*( gpad)
+    sel_ondet &= star_xy[1] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
+    sel_ondet &= star_xy[1] < 4088 + 2*( gpad)
+    
+    print('cutting stars to be on detector + padded area')
+    stars = star_input[sel_ondet]
+    #print(stars00['Xpos'].shape)
+    stars['Xpos'] = star_xy[0][sel_ondet]
+    stars['Ypos'] = star_xy[1][sel_ondet]
+    Ntot= len(stars)
     ngal = 0
     fid_psf = iu.get_psf(fov_pixels=pad-1, det=det)
     if args.dogal == 'y':
