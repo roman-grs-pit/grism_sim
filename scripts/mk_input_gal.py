@@ -50,7 +50,7 @@ for sim_file in sims:
     sim.close()
 
 
-tbl = Table([all_RA, all_DEC, all_sim, all_ind,all_Z,all_lum184,,all_lum158],
+tbl = Table([all_RA, all_DEC, all_sim, all_ind,all_Z,all_lum184,all_lum158],
             names=('RA', 'DEC', 'SIM', 'IDX','Z','tot_Lum_F184_Av1.6523','tot_Lum_F158_Av1.6523'),
             dtype=(float, float, int, int,float,float),)
 h=0.6774
@@ -61,10 +61,11 @@ cosmo = FlatLambdaCDM(H0=100*h, Om0=0.3089, Tcmb0=2.725)
 lum_distance = cosmo.luminosity_distance(tbl['Z']).value
 abM = -2.5*np.log10(tbl['tot_Lum_F184_Av1.6523'])
 mag = abM+5*np.log10(lum_distance*1e6) - 5 - 2.5*np.log10(1+tbl['Z'])
-tbl['mag_F184_Av1.6523']
+tbl['mag_F184_Av1.6523'] = mag
 abM = -2.5*np.log10(tbl['tot_Lum_F158_Av1.6523'])
 mag = abM+5*np.log10(lum_distance*1e6) - 5 - 2.5*np.log10(1+tbl['Z'])
-tbl['mag_F158_Av1.6523']
+tbl['mag_F158_Av1.6523'] = mag
+tbl['unique_ID'] = tbl['IDX']*1000 + tbl['SIM']
 
 
 print(tbl.info())
