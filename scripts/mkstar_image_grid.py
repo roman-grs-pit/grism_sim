@@ -84,6 +84,9 @@ with open(conf_file) as f:
 
 input_star_fn = os.path.join(github_dir, 'star_fields/py/stars_radec00.ecsv') #this was produced by the script in star_fields
 
+#! TROUBLESHOOTING
+input_star_fn = os.path.join(github_dir, 'grism_sim/py/test.ecsv')
+
 pad = args.pad #user supplied padding, corresponding to the size in pixels for the psf and thus the size of each object in the direct image
 gpad = grizli_conf["pad"] #grism padding needed based on configuration yaml
 #Taking this out and instead using combination//we will make padding equal to the greater of the two
@@ -167,10 +170,10 @@ if args.mkdirect == 'y':
             sp = iu.star_postage_grid(psf_grid,mag,xpos,ypos,fov_pixels=pad-1)
         end_psf = time() #! TIMING
         fov_pixels = pad-1
-        full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
+        full_image[xp+gpad+pad-fov_pixels:xp+gpad+pad+fov_pixels,yp+gpad+pad-fov_pixels:yp+gpad+pad+fov_pixels] += sp
         start_seg = time() #! TIMING
         selseg = sp > thresh
-        full_seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels][selseg] = i+1
+        full_seg[xp+gpad+pad-fov_pixels:xp+gpad+pad+fov_pixels,yp+gpad+pad-fov_pixels:yp+gpad+pad+fov_pixels][selseg] = i+1
         end_seg = time() #! TIMING
 
         #! TROUBLESHOOTING

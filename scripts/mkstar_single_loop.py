@@ -83,6 +83,9 @@ with open(conf_file) as f:
 
 input_star_fn = os.path.join(github_dir, 'star_fields/py/stars_radec00.ecsv') #this was produced by the script in star_fields
 
+#! TROUBLESHOOTING
+input_star_fn = os.path.join(github_dir, 'grism_sim/py/test.ecsv')
+
 pad = args.pad #user supplied padding, corresponding to the size in pixels for the psf and thus the size of each object in the direct image
 gpad = grizli_conf["pad"] #grism padding needed based on configuration yaml
 #Taking this out and instead using combination//we will make padding equal to the greater of the two
@@ -221,16 +224,16 @@ for i in range(0,len(stars00)):
 
     fov_pixels = pad-1
     # Collector
-    full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
+    full_image[xp+gpad-fov_pixels:xp+gpad+fov_pixels,yp+gpad-fov_pixels:yp+gpad+fov_pixels] += sp
 
-    sp_lims = [max(0,-(xp+pad-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(xp+pad+fov_pixels-det_with_pad)),
-               max(0,-(yp+pad-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(yp+pad+fov_pixels-det_with_pad))]
+    sp_lims = [max(0,-(xp+gpad-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(xp+gpad+fov_pixels-det_with_pad)),
+               max(0,-(yp+gpad-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(yp+gpad+fov_pixels-det_with_pad))]
     # Intermediate step; overwritten at end
-    roman.direct.data["REF"][xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] = sp[sp_lims[0]:sp_lims[1],sp_lims[2]:sp_lims[3]]
+    roman.direct.data["REF"][xp+gpad-fov_pixels:xp+gpad+fov_pixels,yp+gpad-fov_pixels:yp+gpad+fov_pixels] = sp[sp_lims[0]:sp_lims[1],sp_lims[2]:sp_lims[3]]
     start_seg = time() #! TIMING
     selseg = sp[sp_lims[0]:sp_lims[1],sp_lims[2]:sp_lims[3]] > thresh
     # Intermediate step; no seg needs to be saved
-    roman.seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels][selseg] = i+1
+    roman.seg[xp+gpad-fov_pixels:xp+gpad+fov_pixels,yp+gpad-fov_pixels:yp+gpad+fov_pixels][selseg] = i+1
     end_seg = time() #! TIMING
 
     start_grism = time() #! TIMING
@@ -267,10 +270,10 @@ for i in range(0,len(stars00)):
     cumulative_seg += (end_seg - start_seg)
     cumulative_grism += (end_grism - start_grism)
 
-    #! TROUBLESHOOTING
-    N += 1
-    if N//10 == N/10:
-        print(N,Ntot,len(np.unique(roman.seg)),i+1)
+    # #! TROUBLESHOOTING
+    # N += 1
+    # if N//10 == N/10:
+    #     print(N,Ntot,len(np.unique(roman.seg)),i+1)
 
 end_single_loop = time() #! TIMING
 

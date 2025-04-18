@@ -1,0 +1,22 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - {name: index, datatype: float64}
+# - {name: Xpos, datatype: float64}
+# - {name: Ypos, datatype: float64}
+# - {name: '8', datatype: float64}
+# - {name: 8again, datatype: float64}
+# - {name: '0', datatype: float64}
+# - {name: star_template_index, datatype: float64}
+# - {name: 0again, datatype: float64}
+# - {name: magnitude, datatype: float64}
+# - {name: 0again2, datatype: float64}
+# - {name: '1', datatype: float64}
+# - {name: 0again3, datatype: float64}
+# - {name: 0again4, datatype: float64}
+# - {name: mag_again, datatype: float64}
+# - {name: RA, datatype: float64}
+# - {name: DEC, datatype: float64}
+# schema: astropy-2.0
+index Xpos Ypos 8 8again 0 star_template_index 0again magnitude 0again2 1 0again3 0again4 mag_again RA DEC
+0.0 2044 2044 8.0 8.0 0.0 153.0 0.0 14.5 0.0 1.0 0.0 0.0 14.5 0.0 0.0
