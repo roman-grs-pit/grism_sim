@@ -14,9 +14,6 @@ sims = [sim for sim in all_sims if "_flux.hdf5" not in sim]
 print(all_sims)
 print(len(all_sims))
 
-print(sims[:2])
-print(len(sims[:2]))
-
 prefix = "Euclid_Roman_4deg2_radec"
 
 
@@ -52,7 +49,7 @@ for sim_file in sims:
 
 tbl = Table([all_RA, all_DEC, all_sim, all_ind,all_Z,all_lum184,all_lum158],
             names=('RA', 'DEC', 'SIM', 'IDX','Z','tot_Lum_F184_Av1.6523','tot_Lum_F158_Av1.6523'),
-            dtype=(float, float, int, int,float,float),)
+            dtype=(float, float, int, int,float,float,float),)
 h=0.6774
 Mpc = 3.08568025E24 # cm
 from astropy.cosmology import FlatLambdaCDM
