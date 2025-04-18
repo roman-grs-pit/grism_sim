@@ -173,4 +173,6 @@ def mk_ref_image(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,psf_c
     dhdu = fits.ImageHDU(data=np.zeros(cut_image.shape),name='DQ',header=phdu.header)
     hdul = fits.HDUList([phdu,ihdu,ehdu,dhdu])
     hdul.writeto(direct_fits_out_nopad, overwrite=True)
+    
+    return True
 
