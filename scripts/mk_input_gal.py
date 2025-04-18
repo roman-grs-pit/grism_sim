@@ -68,5 +68,5 @@ tbl['unique_ID'] = tbl['IDX']*1000 + tbl['SIM']
 print(tbl.info())
 
 print("Writing catalog")
-tbl_file = '/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/Euclid_Roman_4deg2_radec.fits'
+tbl_file = local_path+'Euclid_Roman_4deg2_radec.fits'
 tbl.write(tbl_file,overwrite=True)
