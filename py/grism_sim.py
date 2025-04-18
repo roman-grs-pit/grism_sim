@@ -20,6 +20,11 @@ import image_utils as iu
 
 import yaml
 
+github_dir_env=os.getenv('github_dir')
+if github_dir_env is None:
+    print('github_dir environment variable has not been set, will cause problems if not explicitly set in function calss')
+
+
 def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,psf_cutout_size=365,github_dir=github_dir_env,gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25):
     #tel_ra,tel_dec correspond to the coordinates (in degrees) of the middle of the field (not the detector center)
     #pa is the position angle (in degrees)
