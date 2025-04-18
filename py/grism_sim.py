@@ -290,7 +290,7 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,p
     
     
     #save grism model image + noise
-    out_fn = os.path.join(output_dir, args.out_fn)
+    
     hdu_list = fits.open(empty_grism)
     if gpad != 0:
         hdu_list.append(fits.ImageHDU(data=roman.model[gpad:-gpad, gpad:-gpad],name='MODEL'))
