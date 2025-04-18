@@ -82,7 +82,7 @@ def mk_ref_image(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,psf_c
     ngal = 0
     fid_psf = iu.get_psf(fov_pixels=pad-1, det=det)
     if dogal == 'y':
-        gal_coords = SkyCoord(ra=(gal_input['RA']-ra_off)*u.degree,dec=gal_input['DEC']*u.degree, frame='icrs')
+        gal_coords = SkyCoord(ra=(gal_input['RA'])*u.degree,dec=gal_input['DEC']*u.degree, frame='icrs')
         gal_xy = im_wcs.world_to_pixel(gal_coords)
     
         sel_ondet = gal_xy[0] > 0
