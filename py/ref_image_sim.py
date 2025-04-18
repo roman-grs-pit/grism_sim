@@ -81,7 +81,7 @@ def mk_ref_image(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,psf_c
     Ntot= len(stars)
     ngal = 0
     fid_psf = iu.get_psf(fov_pixels=pad-1, det=det)
-    if args.dogal == 'y':
+    if dogal == 'y':
         gal_coords = SkyCoord(ra=(gal_input['RA']-ra_off)*u.degree,dec=gal_input['DEC']*u.degree, frame='icrs')
         gal_xy = im_wcs.world_to_pixel(gal_coords)
     
@@ -100,7 +100,7 @@ def mk_ref_image(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,psf_c
 
         #fiducial galaxy profile
         
-        r_eff = 4 #radius for profile in pixels
+        r_eff = 2.5 #radius for profile in pixels
         x, y = np.meshgrid(np.arange(-15,15), np.arange(-15,15)) #30x30 grid of pixels
         from astropy.modeling.models import Sersic2D
         round_exp = Sersic2D(amplitude=1, r_eff=r_eff,n=1) #round exponential 
