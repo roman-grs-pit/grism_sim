@@ -165,7 +165,7 @@ def mk_ref_image(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,psf_c
     phdu.header["EXPTIME"] = 141
     shp = cut_image.shape
     phdu.header = iu.add_wcs(phdu,ra, dec, crpix2=shp[1]/2,crpix1=shp[0]/2, cdelt1=0.11, cdelt2=0.11,
-                crota2=pa_aper,naxis1=shp[0],naxis2=shp[1])
+                crota2=pa,naxis1=shp[0],naxis2=shp[1])
 
     err = np.random.poisson(10,cut_image.shape)*0.001 #np.zeros(cut_image.shape)
     ihdu = fits.ImageHDU(data=cut_image,name='SCI',header=phdu.header)
