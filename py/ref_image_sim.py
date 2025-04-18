@@ -47,9 +47,7 @@ def mk_ref_image(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,psf_c
     #example_direct = args.roman_2022sim_dir + 'products/FOV0/roll_0/dither_0x_0y/SCA1/GRS_FOV0_roll0_dx0_dy0_SCA1_direct_final.fits'
     
     #this ends up setting the background noise and defines the WCS
-    
-    ra, dec = args.ra,args.dec
-    
+        
     background = grizli_conf["grism_background"]
     EXPTIME = 301 
     NEXP = 1     
@@ -58,7 +56,7 @@ def mk_ref_image(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,psf_c
     import roman_coords_transform as ctrans
     code_data_dir = github_dir+'/observing-program/data/'
     rctrans = ctrans.RomanCoordsTransform(file_path=code_data_dir)
-    dfoot = rctrans.wfi_sky_pointing(ra, dec, pa_aper, ds9=False)
+    dfoot = rctrans.wfi_sky_pointing(tel_ra, tel_dec, pa, ds9=False)
     ra = dfoot[0][int(det_num)]['ra_cen']
     dec = dfoot[0][int(det_num)]['dec_cen']
 
