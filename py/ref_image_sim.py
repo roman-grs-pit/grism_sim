@@ -112,7 +112,7 @@ def mk_ref_image(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,psf_c
     full_seg = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)),dtype=int)
     thresh = 0.01 #threshold flux for segmentation map
     N = 0
-    for i in range(0,len(stars00)):
+    for i in range(0,len(stars)):
         xpos = stars[i]['Xpos']
         ypos = stars[i]['Ypos']
         mag = stars[i]['magnitude']
