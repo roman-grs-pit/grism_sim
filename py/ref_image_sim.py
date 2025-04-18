@@ -43,7 +43,7 @@ def mk_ref_image(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,psf_c
     direct_fits_out = os.path.join(output_dir,fn_root+'.fits' )
     direct_fits_out_nopad = os.path.join(output_dir,fn_root+'_nopad.fits')
     nopad_seg = os.path.join(output_dir,fn_root+ "_seg_nopad.fits")
-    pad_seg = oos.path.join(output_dir,fn_root+ "seg_wpad.fits")
+    pad_seg = os.path.join(output_dir,fn_root+ "seg_wpad.fits")
     #example_direct = args.roman_2022sim_dir + 'products/FOV0/roll_0/dither_0x_0y/SCA1/GRS_FOV0_roll0_dx0_dy0_SCA1_direct_final.fits'
     
     #this ends up setting the background noise and defines the WCS
