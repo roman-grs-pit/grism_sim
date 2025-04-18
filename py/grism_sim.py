@@ -173,132 +173,132 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,p
     hdul.writeto(direct_fits_out_nopad, overwrite=True)
 
     fn_root_grism = 'grism_ra%s_dec%s_pa%s_det%s' % (tel_ra,tel_dec,pa,det)
-	empty_grism = os.path.join(output_dir, 'empty_'+fn_root_grism+'.fits')
-	h, wcs = grizli.fake_image.roman_header(ra=ra, dec=dec, pa_aper=pa, naxis=(4088,4088))
-	head = wcs.to_header()
-	grizli.fake_image.make_fake_image(h, output=empty_grism, exptime=EXPTIME, nexp=NEXP, background=background)
-	file = fits.open(empty_grism)
-	file[1].header["CONFFILE"] = os.path.join(github_dir, "grism_sim/data/Roman.det%i.07242020.conf" % (det_num))
-	file.writeto(empty_grism, overwrite=True)
-	file.close()
+    empty_grism = os.path.join(output_dir, 'empty_'+fn_root_grism+'.fits')
+    h, wcs = grizli.fake_image.roman_header(ra=ra, dec=dec, pa_aper=pa, naxis=(4088,4088))
+    head = wcs.to_header()
+    grizli.fake_image.make_fake_image(h, output=empty_grism, exptime=EXPTIME, nexp=NEXP, background=background)
+    file = fits.open(empty_grism)
+    file[1].header["CONFFILE"] = os.path.join(github_dir, "grism_sim/data/Roman.det%i.07242020.conf" % (det_num))
+    file.writeto(empty_grism, overwrite=True)
+    file.close()
 
-	size = grizli_conf["size"][det]
-	
-	
-	roman = GrismFLT(grism_file=empty_grism,ref_file=direct_fits_out_nopad, seg_file=None, pad=gpad)
-	masked_seg = fits.open(nopad_seg)[0].data		
-	roman.seg = masked_seg.astype("float32") #this segmentation map should have the area of the padded grism image, but not have the padding added because of the PSF size
-	
-	df = Table.read(os.path.join(github_dir, 'grism_sim/data/wfirst_wfi_f158_001_syn.fits'), format='fits') #close to H-band
-	bp = S.ArrayBandpass(df["WAVELENGTH"], df["THROUGHPUT"])
-	
-	minlam = grizli_conf["minlam"]
-	maxlam = grizli_conf["maxlam"]
-	
-	tempdir = os.path.join(github_dir, 'star_fields/data/SEDtemplates/')
-	templates = open(os.path.join(github_dir, 'star_fields/data/SEDtemplates/input_spectral_STARS.lis')).readlines()
-	temp_inds = stars['star_template_index'] - 58*(stars['star_template_index']//58)
-	
-	count = 0
-	print('about to simulate grism')
-	for i in tqdm(range(0,len(stars))):
-		photid = i+1
-		row = stars[i]
-		mag = row["magnitude"]
-		temp_ind = int(temp_inds[i])
-		#print(temp_ind)
-		star_type = templates[temp_ind].strip('\n')
-		temp = np.loadtxt(os.path.join(tempdir, star_type)).transpose()
-		wave = temp[0]
-		sel = wave > minlam
-		sel &= wave < maxlam
-		wave = wave[sel]
-		flux = temp[1]
-		flux = flux[sel]
-		star_spec = S.ArraySpectrum(wave=wave, flux=flux, waveunits="angstroms", fluxunits="flam")
-		spec = star_spec.renorm(mag, "abmag", bp)
-		spec.convert("flam")
-	
-		#print('made it to grism step')
-		# size is read in from grizli_config.yaml above
-		#print(row)
-		roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=True, store=False,
-								   is_cgs=True, spectrum_1d=[spec.wave, spec.flux])
-		count += 1
-		#print(count)
-	
-	wave = np.linspace(2000, 40000, 19001) #wavelength grid for simulation
-	sel_wave = wave > minlam
-	sel_wave &= wave < maxlam
-	wave = wave[sel_wave]
-	
-		
-	for i in tqdm(range(0,ngal)):
-		photid += 1
-		row = gals[i]
-		mag = row['mag']
-		imflux = iu.mag2flux(mag)#imflux = row['flux']
-		#make image, put it in seg
-		full_image = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)))
-		full_seg = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)),dtype=int)
-		thresh = 0.01 #threshold flux for segmentation map
-		N = 0
-		#if args.fast_direct == 'y':
-		conv_prof = conv_prof_fixed#signal.convolve2d(fid_psf[0].data,testprof,mode='same')
-		#else:
-		#	print('need to write something for non-fixed psf')
-		#	break
-		xpos = row['Xpos']
-		ypos = row['Ypos']
-		#if xpos > 4088+2*gpad or ypos > 4088+2*gpad:
-		#    print(xpos,ypos,'out of bounds position')
-		xp = int(xpos)
-		yp = int(ypos)
-		xoff = 0#xpos-xp
-		yoff = 0#ypos-yp
-		sp = imflux*conv_prof
-		fov_pixels = pad-1
-		full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
-		masked_im = full_image[pad:-pad,pad:-pad]
-		#copying from process_ref_file in grizli
-		#roman.direct.data['REF'] = np.asarray(masked_im,dtype=np.float32)
-		#roman.direct.data['REF'] *= roman.direct.ref_photflam
-		
-		selseg = sp > thresh
-		full_seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels][selseg] = photid
-		masked_seg = full_seg[pad:-pad,pad:-pad]
-		roman.seg = np.asarray(masked_seg,dtype=np.float32)
-		
-		#get sed and convert to spectrum
-		sim_fn = mockdir+'galacticus_FOV_EVERY100_sub_'+str(row['SIM'])+'.hdf5'
-		sim = h5py.File(sim_fn, 'r')
-		sed = sim['Outputs']['SED:observed:dust:Av1.6523'][row['IDX']]
-		flux = sed[sel_wave]
-		gal_spec = S.ArraySpectrum(wave=wave, flux=flux, waveunits="angstroms", fluxunits="flam")
-		spec = gal_spec.renorm(mag, "abmag", bp)
-		spec.convert("flam")
-		
-		roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=True, store=False,
-								   is_cgs=True, spectrum_1d=[spec.wave, spec.flux])
-	
-	
-	
-	
-	#save grism model image + noise
-	out_fn = os.path.join(output_dir, args.out_fn)
-	hdu_list = fits.open(empty_grism)
-	if gpad != 0:
-		hdu_list.append(fits.ImageHDU(data=roman.model[gpad:-gpad, gpad:-gpad],name='MODEL'))
-		#hdu_list.append(fits.ImageHDU(data=roman.grism.data['SCI'][gpad:-gpad, gpad:-gpad],name='ERR'))
-		hdu_list['ERR'].data = roman.grism.data['SCI'][gpad:-gpad, gpad:-gpad]
-	else:
-		hdu_list.append(fits.ImageHDU(data=roman.model,name='MODEL'))
-		#hdu_list.append(fits.ImageHDU(data=roman.grism.data['SCI']),name='ERR')
-		hdu_list['ERR'].data = roman.grism.data['SCI']
-	
-	out_fn = os.path.join(output_dir, fn_root_grism+'.fits')
-	hdu_list.writeto(out_fn, overwrite=True)
-	hdu_list.close()
-	print('wrote to '+out_fn)
+    size = grizli_conf["size"][det]
+    
+    
+    roman = GrismFLT(grism_file=empty_grism,ref_file=direct_fits_out_nopad, seg_file=None, pad=gpad)
+    masked_seg = fits.open(nopad_seg)[0].data       
+    roman.seg = masked_seg.astype("float32") #this segmentation map should have the area of the padded grism image, but not have the padding added because of the PSF size
+    
+    df = Table.read(os.path.join(github_dir, 'grism_sim/data/wfirst_wfi_f158_001_syn.fits'), format='fits') #close to H-band
+    bp = S.ArrayBandpass(df["WAVELENGTH"], df["THROUGHPUT"])
+    
+    minlam = grizli_conf["minlam"]
+    maxlam = grizli_conf["maxlam"]
+    
+    tempdir = os.path.join(github_dir, 'star_fields/data/SEDtemplates/')
+    templates = open(os.path.join(github_dir, 'star_fields/data/SEDtemplates/input_spectral_STARS.lis')).readlines()
+    temp_inds = stars['star_template_index'] - 58*(stars['star_template_index']//58)
+    
+    count = 0
+    print('about to simulate grism')
+    for i in tqdm(range(0,len(stars))):
+        photid = i+1
+        row = stars[i]
+        mag = row["magnitude"]
+        temp_ind = int(temp_inds[i])
+        #print(temp_ind)
+        star_type = templates[temp_ind].strip('\n')
+        temp = np.loadtxt(os.path.join(tempdir, star_type)).transpose()
+        wave = temp[0]
+        sel = wave > minlam
+        sel &= wave < maxlam
+        wave = wave[sel]
+        flux = temp[1]
+        flux = flux[sel]
+        star_spec = S.ArraySpectrum(wave=wave, flux=flux, waveunits="angstroms", fluxunits="flam")
+        spec = star_spec.renorm(mag, "abmag", bp)
+        spec.convert("flam")
+    
+        #print('made it to grism step')
+        # size is read in from grizli_config.yaml above
+        #print(row)
+        roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=True, store=False,
+                                   is_cgs=True, spectrum_1d=[spec.wave, spec.flux])
+        count += 1
+        #print(count)
+    
+    wave = np.linspace(2000, 40000, 19001) #wavelength grid for simulation
+    sel_wave = wave > minlam
+    sel_wave &= wave < maxlam
+    wave = wave[sel_wave]
+    
+        
+    for i in tqdm(range(0,ngal)):
+        photid += 1
+        row = gals[i]
+        mag = row['mag']
+        imflux = iu.mag2flux(mag)#imflux = row['flux']
+        #make image, put it in seg
+        full_image = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)))
+        full_seg = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)),dtype=int)
+        thresh = 0.01 #threshold flux for segmentation map
+        N = 0
+        #if args.fast_direct == 'y':
+        conv_prof = conv_prof_fixed#signal.convolve2d(fid_psf[0].data,testprof,mode='same')
+        #else:
+        #   print('need to write something for non-fixed psf')
+        #   break
+        xpos = row['Xpos']
+        ypos = row['Ypos']
+        #if xpos > 4088+2*gpad or ypos > 4088+2*gpad:
+        #    print(xpos,ypos,'out of bounds position')
+        xp = int(xpos)
+        yp = int(ypos)
+        xoff = 0#xpos-xp
+        yoff = 0#ypos-yp
+        sp = imflux*conv_prof
+        fov_pixels = pad-1
+        full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
+        masked_im = full_image[pad:-pad,pad:-pad]
+        #copying from process_ref_file in grizli
+        #roman.direct.data['REF'] = np.asarray(masked_im,dtype=np.float32)
+        #roman.direct.data['REF'] *= roman.direct.ref_photflam
+        
+        selseg = sp > thresh
+        full_seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels][selseg] = photid
+        masked_seg = full_seg[pad:-pad,pad:-pad]
+        roman.seg = np.asarray(masked_seg,dtype=np.float32)
+        
+        #get sed and convert to spectrum
+        sim_fn = mockdir+'galacticus_FOV_EVERY100_sub_'+str(row['SIM'])+'.hdf5'
+        sim = h5py.File(sim_fn, 'r')
+        sed = sim['Outputs']['SED:observed:dust:Av1.6523'][row['IDX']]
+        flux = sed[sel_wave]
+        gal_spec = S.ArraySpectrum(wave=wave, flux=flux, waveunits="angstroms", fluxunits="flam")
+        spec = gal_spec.renorm(mag, "abmag", bp)
+        spec.convert("flam")
+        
+        roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=True, store=False,
+                                   is_cgs=True, spectrum_1d=[spec.wave, spec.flux])
+    
+    
+    
+    
+    #save grism model image + noise
+    out_fn = os.path.join(output_dir, args.out_fn)
+    hdu_list = fits.open(empty_grism)
+    if gpad != 0:
+        hdu_list.append(fits.ImageHDU(data=roman.model[gpad:-gpad, gpad:-gpad],name='MODEL'))
+        #hdu_list.append(fits.ImageHDU(data=roman.grism.data['SCI'][gpad:-gpad, gpad:-gpad],name='ERR'))
+        hdu_list['ERR'].data = roman.grism.data['SCI'][gpad:-gpad, gpad:-gpad]
+    else:
+        hdu_list.append(fits.ImageHDU(data=roman.model,name='MODEL'))
+        #hdu_list.append(fits.ImageHDU(data=roman.grism.data['SCI']),name='ERR')
+        hdu_list['ERR'].data = roman.grism.data['SCI']
+    
+    out_fn = os.path.join(output_dir, fn_root_grism+'.fits')
+    hdu_list.writeto(out_fn, overwrite=True)
+    hdu_list.close()
+    print('wrote to '+out_fn)
 
 
