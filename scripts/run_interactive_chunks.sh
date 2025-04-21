@@ -11,8 +11,8 @@ do
   do
     for (( nra=0;nra<=1;nra++ ))
     do
-    #srun -N 1 -C cpu -t 04:00:00 --qos interactive --account m4943 python scripts/mk_grism_par_fullarea_run1_chunk.py --dith_ind $ndith --dec_ind $ndec --ra_ind $nra
-    echo $ndith $ndec $nra
+    srun -N 1 -C cpu -t 04:00:00 --qos interactive --account m4943 python scripts/mk_grism_par_fullarea_run1_chunk.py --dith_ind $ndith --dec_ind $ndec --ra_ind $nra
+    #echo $ndith $ndec $nra
     done
   done
 done  
