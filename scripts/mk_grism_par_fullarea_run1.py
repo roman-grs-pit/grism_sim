@@ -44,10 +44,6 @@ for det in range(0,ndet):
 					ra = ra0+j*rastep+dith*dithstep[0]
 					dec = dec0+decstep*i+decoff+dith*dithstep[1]
 					inds.append([ra,dec,pa,i+1])
-
-
-for i in range(0,ndet):
-    for pa,decoff in zip(pal,decoffl):
     	
 
 print('will simulate '+str(len(inds))+' grism images')
