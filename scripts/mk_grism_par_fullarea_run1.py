@@ -41,8 +41,8 @@ for det in range(0,ndet):
 					decoff = decpa/2
 					if pa > 100:
 						decoff = -decpa/2
-					ra = ra0+j*rastep+dith*dithstep[0]
-					dec = dec0+decstep*i+decoff+dith*dithstep[1]
+					ra = round(ra0+j*rastep+dith*dithstep[0],4)
+					dec = round(dec0+decstep*i+decoff+dith*dithstep[1],4)
 					inds.append([ra,dec,pa,i+1])
     	
 
