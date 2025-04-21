@@ -42,12 +42,12 @@ pal = [0,5,175,180] #position angles
 
 for det in range(0,ndet):
     for pa in pal:
-		decoff = decpa/2
-		if pa > 100:
-			decoff = -decpa/2
-		ra = round(ra0+args.ra_ind*rastep+args.dith_ind*dithstep[0],4)
-		dec = round(dec0+decstep*args.dec_ind+decoff+dith_ind*dithstep[1],4)
-		inds.append([ra,dec,pa,det+1])
+        decoff = decpa/2
+        if pa > 100:
+            decoff = -decpa/2
+        ra = round(ra0+args.ra_ind*rastep+args.dith_ind*dithstep[0],4)
+        dec = round(dec0+decstep*args.dec_ind+decoff+dith_ind*dithstep[1],4)
+        inds.append([ra,dec,pa,det+1])
         
 
 print('will simulate '+str(len(inds))+' grism images')
