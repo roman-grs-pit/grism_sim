@@ -14,12 +14,9 @@ if not os.path.exists(outdir):
 def dosim(args):
     mk_ref_and_grism(args[0],args[1],args[2],args[3],stars,gals,outdir)
 
-dec = 0
-ra = 10
 inds = []
 ndet = 18
 pal = [0,5,175,180] 
-decoffl = [-0.1,-0.1,0.1,0.1]
 
 ra0 = 9.5
 dec0 = -.65
@@ -34,17 +31,17 @@ nra = 2 #number of "columns"
 pal = [0,5,175,180] #position angles
 
 for det in range(0,ndet):
-	for pa in pal:
-		for dith in range(0,ndith):
-			for j in range(0,nra):
-				for i in range(0,ndec):
-					decoff = decpa/2
-					if pa > 100:
-						decoff = -decpa/2
-					ra = round(ra0+j*rastep+dith*dithstep[0],4)
-					dec = round(dec0+decstep*i+decoff+dith*dithstep[1],4)
-					inds.append([ra,dec,pa,i+1])
-    	
+    for pa in pal:
+        for dith in range(0,ndith):
+            for j in range(0,nra):
+                for i in range(0,ndec):
+                    decoff = decpa/2
+                    if pa > 100:
+                        decoff = -decpa/2
+                    ra = round(ra0+j*rastep+dith*dithstep[0],4)
+                    dec = round(dec0+decstep*i+decoff+dith*dithstep[1],4)
+                    inds.append([ra,dec,pa,det+1])
+        
 
 print('will simulate '+str(len(inds))+' grism images')
 
