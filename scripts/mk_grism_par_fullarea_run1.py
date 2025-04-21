@@ -47,6 +47,8 @@ for det in range(0,ndet):
     	
 
 print('will simulate '+str(len(inds))+' grism images')
-    
-with Pool(processes=128) as pool:
+
+nproc = 100 #inefficient with 128
+
+with Pool(processes=nproc) as pool:
     res = pool.map(dosim, inds)
