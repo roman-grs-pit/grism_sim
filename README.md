@@ -11,6 +11,8 @@ conda activate /global/common/software/m4943/grizli0
 PYTHONPATH=$PYTHONPATH:/global/common/software/m4943/grizli0/grism_sim/py
 
 export WEBBPSF_PATH="/global/cfs/cdirs/m4943/grismsim/webbpsf-data"
+
+export github_dir=/global/common/software/m4943/grizli0/
 ```
 
 ### Full NERSC install (for reference only, most users will need the above option)
