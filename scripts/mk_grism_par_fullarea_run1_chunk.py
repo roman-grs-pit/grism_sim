@@ -1,4 +1,4 @@
-#test run with srun -N 1 -C cpu -t 04:00:00 --qos interactive --account m4943 python mk_grism_par_fullarea_run1.py
+#srun -N 1 -C cpu -t 04:00:00 --qos interactive --account m4943 python scripts/mk_grism_par_fullarea_run1_chunk.py
 from astropy.table import Table
 from grism_sim import mk_ref_and_grism
 import os
@@ -46,7 +46,7 @@ for det in range(0,ndet):
         if pa > 100:
             decoff = -decpa/2
         ra = round(ra0+args.ra_ind*rastep+args.dith_ind*dithstep[0],4)
-        dec = round(dec0+decstep*args.dec_ind+decoff+dith_ind*dithstep[1],4)
+        dec = round(dec0+decstep*args.dec_ind+decoff+args.dith_ind*dithstep[1],4)
         inds.append([ra,dec,pa,det+1])
         
 
