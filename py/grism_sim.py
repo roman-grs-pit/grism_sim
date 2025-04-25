@@ -25,7 +25,7 @@ if github_dir_env is None:
     print('github_dir environment variable has not been set, will cause problems if not explicitly set in function calss')
 
 
-def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,psf_cutout_size=365,github_dir=github_dir_env,gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/'):
+def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='07242020',psf_cutout_size=365,github_dir=github_dir_env,gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/'):
     #tel_ra,tel_dec correspond to the coordinates (in degrees) of the middle of the field (not the detector center)
     #pa is the position angle (in degrees)
     #det_num is an integer corresponding to the detector number
@@ -183,7 +183,7 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,p
     head = wcs.to_header()
     grizli.fake_image.make_fake_image(h, output=empty_grism, exptime=EXPTIME, nexp=NEXP, background=background)
     file = fits.open(empty_grism)
-    file[1].header["CONFFILE"] = os.path.join(github_dir, "grism_sim/data/Roman.det%i.07242020.conf" % (det_num))
+    file[1].header["CONFFILE"] = os.path.join(github_dir, "grism_sim/data/Roman.det"+str(det_num)+"."+confver+".conf" #% (det_num,confver))
     file.writeto(empty_grism, overwrite=True)
     file.close()
 
