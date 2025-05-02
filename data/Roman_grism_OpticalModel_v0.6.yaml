@@ -1,0 +1,130 @@
+detector_model:
+  # Pixel coordinates are for center of pixel -- i.e.,
+  #   - [1,1] is the center of the leftmost, bottom pixel
+  #   - [0.5,0.5] would be the very bottom, left corner of that pixel
+  # This is different from a physical size measurement of the array, like mm,
+  # where the bottom corner of the same pixel would be [0,0].
+
+  # X_CENTER & Y_CENTER are in units of mm
+  x_size: 4088
+  y_size: 4088
+  crpix1: 2044.0
+  crpix2: 2044.0
+
+  # PA for the SCAs
+  pa: 0.0
+
+  # Pixel specifics
+  pixel_per_mm: 100
+  pixel_scale: 0.11
+
+  # SCA centers in mm
+  xy_centers:
+    1: [-22.14, 12.15]
+    2: [-22.29, -37.03]
+    3: [-22.44, -82.06]
+    4: [-66.42, 20.90]
+    5: [-66.92, -28.28]
+    6: [-67.42, -73.06]
+    7: [-110.70, 42.20]
+    8: [-111.48, -6.98]
+    9: [-112.64, -51.06]
+    10: [22.14, 12.15]
+    11: [22.29, -37.03]
+    12: [22.44, -82.06]
+    13: [66.42, 20.90]
+    14: [66.92, -28.28]
+    15: [67.42, -73.06]
+    16: [110.70, 42.20]
+    17: [111.48, -6.98]
+    18: [112.64, -51.06]
+
+optical_model:
+  # Using dec13,2024 version (opticalmodel_v0.5.config)
+
+  # General information
+  disperser: grism
+
+  # Wavelength specifics
+  lambda_min: 0.9 # in micron
+  lambda_max: 2.0 # in micron
+  lambda_res: 0.001 # in micron
+  ref_lambda: 1.55 # in micron
+
+  # Coefficient matrix dimensions
+  dimen_map: 4
+  dimen_crv: 3
+  dimen_ids: 3
+
+  # Order of polynomials for the CRV and IDS solns
+  power_crv: 3
+  power_ids: 3
+
+  order_+1:
+    # Coefficients from G2DP's opticalmodel_v0.4.config
+    # August 15, 2023. Use updated 2021 spreadsheet model.
+    # Input: Degrees Output: mm
+
+    # X coefficients Xdimension=4 X_ij
+    X_ij:
+      [
+        [0.0614920, -0.219911, 0.0311018, 0.105912],
+        [321.881, 0.00203895,  -1.44006,  -1.99343],
+        [-0.00999437, -0.0872269, -0.426524, -0.692835],
+        [-1.42196,  -1.14407,   1.23843,   12.1385],
+      ]
+
+    # Y coefficients Ydimension=4 Y_ij
+    Y_ij:
+      [
+        [-0.0506102, 322.175, -1.35113, -1.20521],
+        [0.0122720, 0.00152712, -0.145990, -0.311021],
+        [-1.40293, -1.51828, -0.481072, -0.117713],
+        [-0.0283842, -0.157779, 0.569643, 4.88352],
+      ]
+
+    # Coefficients from G2DP's CRVmodel_v0.4.config
+    # August 15, 2023. Use updated 2021 spreadsheet model.
+
+    # Dimension=3 Degree 0:C_0jk  Degree 1:C_1jk  Degree 2:C_2jk
+    C_ijk:
+      [
+        [
+          [-0.00154933, -1.34887e-06, -1.21050e-10],
+          [1.04543e-06, -6.32695e-11, -3.20405e-15],
+          [1.22732e-11, 2.61995e-14, 1.61206e-18],
+        ],
+        [
+          [-0.000258821, 1.58481e-09, -1.99645e-13],
+          [-3.49628e-06, 1.95600e-10, 2.08622e-15],
+          [-2.34769e-13, -3.57560e-18, 3.75165e-21],
+        ],
+        [
+          [-2.21322e-08, -4.66092e-12, -5.99721e-16],
+          [1.55104e-10, 2.88993e-15, 3.08953e-20],
+          [-4.95211e-17, 1.26422e-19, 1.51616e-23],
+        ],
+      ]
+
+    # Coefficients from G2DP's IDSmodel_v0.4.config
+    # August 15, 2023. Use updated 2021 spreadsheet model.
+
+    # Dimension=3  Degree 0:D_0jk  Degree 1:D_1jk  Degree 2:D_2jk
+    D_ijk:
+      [
+        [
+          [0.111727, 4.94107e-07, -1.58382e-11],
+          [3.21045e-09, -3.19651e-12, -1.06445e-15],
+          [-4.85220e-12, 1.71232e-15, 5.48051e-19],
+        ],
+        [
+          [922.101, -0.00622272, 3.05017e-07],
+          [-9.39311e-07, -2.28913e-10, -1.17972e-14],
+          [1.03009e-07, -2.26579e-13, -3.29520e-18],
+        ],
+        [
+          [1.13382, 0.000328773, -2.94897e-09],
+          [8.92621e-07, 3.49654e-12, -5.02465e-15],
+          [3.22737e-11, 1.06685e-13, 1.17870e-17],
+        ],
+      ]
