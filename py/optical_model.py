@@ -12,7 +12,7 @@ class RomanOpticalModel:
     MPA: Mosaic Plate Assembly; position defined in [mm]
     """
 
-    def __init__(self, config_file="config/Roman_OpticalModel_v0.5.yml"):
+    def __init__(self, config_file="../data/Roman_OpticalModel_v0.5.yaml"):
 
         # Load the specified model file (YAML format)
         self.config_file = None
