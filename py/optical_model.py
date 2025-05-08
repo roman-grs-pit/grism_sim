@@ -2,6 +2,12 @@ import yaml
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import LinearNDInterpolator
+import os
+
+if os.environ['github_dir'] is None:
+    print('set $github_dir for anything to work')
+datadir = os.environ['github_dir']+'/grism_sim/data/'
+
 
 
 class RomanOpticalModel:
@@ -12,11 +18,11 @@ class RomanOpticalModel:
     MPA: Mosaic Plate Assembly; position defined in [mm]
     """
 
-    def __init__(self, config_file="../data/Roman_OpticalModel_v0.5.yaml"):
+    def __init__(self, config_file="/Roman_OpticalModel_v0.5.yaml"):
 
         # Load the specified model file (YAML format)
         self.config_file = None
-        self.load_model(config_file=config_file)
+        self.load_model(config_file=datadir+config_file)
 
         # Setup the SCA polygons
         self.sca_list = np.array(
