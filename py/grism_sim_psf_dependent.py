@@ -24,8 +24,7 @@ github_dir_env=os.getenv('github_dir')
 if github_dir_env is None:
     print('github_dir environment variable has not been set, will cause problems if not explicitly set in function calss')
 
-
-def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='07242020',psf_cutout_size=365,extra_grism_name='',github_dir=github_dir_env,gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/'):
+def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='07242020',psf_cutout_size=365,extra_grism_name='',github_dir=github_dir_env,gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/'):
     #tel_ra,tel_dec correspond to the coordinates (in degrees) of the middle of the field (not the detector center)
     #pa is the position angle (in degrees)
     #det_num is an integer corresponding to the detector number
@@ -61,7 +60,7 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,c
     ra = dfoot[0][int(det_num)]['ra_cen']
     dec = dfoot[0][int(det_num)]['dec_cen']
 
-    tot_im_size = 4088+2*(gpad+pad)
+    tot_im_size = 4088+2*gpad #? I removed the pad from this size. I don't use it below. What impact does this have on the ra/dec placements?
 
     im_head = iu.fake_header_wcs(ra, dec, crpix2=tot_im_size/2,crpix1=tot_im_size/2, cdelt1=0.11, cdelt2=0.11,crota2=pa,naxis1=tot_im_size,naxis2=tot_im_size)
     im_wcs = WCS(im_head)
@@ -112,7 +111,7 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,c
         testprof /= np.sum(testprof) #normalize the profile
 
     # Save an empty direct fits with appropriate header info and WCS
-    full_model = np.zeros((4088,4088))
+    full_model = np.zeros((tot_im_size, tot_im_size))
     phdu = fits.PrimaryHDU(data=full_model)
     phdu.header["INSTRUME"] = 'ROMAN   '
     phdu.header["FILTER"] = "f140w"
@@ -130,7 +129,7 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,c
 
     # Save empty grism fits
     fn_root_grism = 'grism_ra%s_dec%s_pa%s_det%s' % (tel_ra,tel_dec,pa,det)
-    fn_root_grsm += extra_grism_name 
+    fn_root_grism += extra_grism_name 
     empty_grism = os.path.join(output_dir, 'empty_'+fn_root_grism+'.fits')
     h, wcs = grizli.fake_image.roman_header(ra=ra, dec=dec, pa_aper=pa, naxis=(4088,4088))
     head = wcs.to_header()
@@ -144,7 +143,7 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,c
     
     # Instantiate Grizli GrizliFLT
     roman = GrismFLT(grism_file=empty_grism,ref_file=empty_direct_fits_out_nopad, seg_file=None, pad=gpad) 
-    roman.seg = np.zeros((4088, 4088), dtype=np.float32) #this segmentation map should have the area of the padded grism image, but not have the padding added because of the PSF size
+    roman.seg = np.zeros((tot_im_size,tot_im_size), dtype=np.float32) #this segmentation map should have the area of the padded grism image, but not have the padding added because of the PSF size
     
     df = Table.read(os.path.join(github_dir, 'grism_sim/data/wfirst_wfi_f158_001_syn.fits'), format='fits') #close to H-band
     bp = S.ArrayBandpass(df["WAVELENGTH"], df["THROUGHPUT"])
@@ -158,7 +157,7 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,c
 
     # Setup roll-on/roll-off shape
     npsfs = grizli_conf["npsfs"]
-    spectrum_overlap = grizli_conf["spectru_overlap"]
+    spectrum_overlap = grizli_conf["spectrum_overlap"]
     window_x = np.linspace(0, np.pi, spectrum_overlap)
     front_y = (1 - np.cos(window_x)) / 2
     back_y = 1 - front_y
@@ -169,6 +168,7 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,c
 
     # START sim here
     for ii, start_wave in enumerate(bins[:-1]):
+        print(f"starting at {start_wave}")
         end_wave = bins[ii+1]
 
         start_wave -= spectrum_overlap * 0.5
@@ -182,7 +182,7 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,c
             end_wave = 20000
 
         # fid_psf = iu.get_psf(fov_pixels=pad-1, det=det) # Fiducial psf generation
-        psf_grid = iu.create_psf_grid(wavelength=start_wave, fov_pixels=fov_pixels, det=det) # PSF Grid generation
+        psf_grid = iu.create_psf_grid(wavelength=start_wave*10e-11, fov_pixels=fov_pixels, det=det) # PSF Grid generation
 
         thresh = 0.01 #threshold flux for segmentation map
         det_with_pad = grizli_conf["detector_size"] + 2*gpad
@@ -228,30 +228,31 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,c
             star_type = templates[temp_ind].strip('\n')
             temp = np.loadtxt(os.path.join(tempdir, star_type)).transpose()
             wave = temp[0]
+            flux = temp[1]
+
+            # renormalization has to occur before picking out the spectrum segment to avoid a DisjointError
+            star_spec = S.ArraySpectrum(wave=wave, flux=flux, waveunits="angstroms", fluxunits="flam")
+            spec = star_spec.renorm(mag, "abmag", bp)
+            spec.convert("flam")
 
             # Pick out segment of spectrum
-            sel = wave > start_wave
-            sel &= wave < end_wave
-            wave = wave[sel]
-            flux = temp[1]
-            flux = flux[sel]
+            sel = spec.wave > start_wave
+            sel &= spec.wave < end_wave
+            wave = spec.wave[sel]
+            flux = spec.flux[sel]
 
             # apodize/roll-on, roll-off
             if start_wave != 10000:
                 flux[:spectrum_overlap] *= front_y
             if end_wave != 20000:
                 flux[-spectrum_overlap:] *= back_y            
-
-            star_spec = S.ArraySpectrum(wave=wave, flux=flux, waveunits="angstroms", fluxunits="flam")
-            spec = star_spec.renorm(mag, "abmag", bp)
-            spec.convert("flam")
         
             # roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=True, store=False,
             #                         is_cgs=True, spectrum_1d=[spec.wave, spec.flux])
             
             #? Is this catcher process necessary? Could we utilize in_place? That used to "cast a shadow." Does it still do that?
             segment_of_dispersion = roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=False, store=False,
-                                    is_cgs=True, spectrum_1d=[spec.wave, spec.flux])
+                                    is_cgs=True, spectrum_1d=[wave, flux])
             
             full_model += segment_of_dispersion[1]
 
@@ -292,7 +293,7 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,c
                 roman.direct.data['REF'] *= roman.direct.ref_photflam #? Do I need to process the ref image when I'm setting it directly in grizli? It was commneted out before, but seems important to include?
                 
                 selseg = sp[sp_lims[0]:sp_lims[1],sp_lims[2]:sp_lims[3]] > thresh
-                roman.seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels][selseg] = photid
+                roman.seg[xp+gpad-fov_pixels:xp+gpad+fov_pixels,yp+gpad-fov_pixels:yp+gpad+fov_pixels][selseg] = photid
                 
                 #? This seems like we're reading the SED lots of time; idk, but i wonder if there's a way to read this fewer times?
                 #get sed and convert to spectrum
