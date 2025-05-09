@@ -235,7 +235,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
             spec = star_spec.renorm(mag, "abmag", bp)
             spec.convert("flam")
 
-            # Pick out segment of spectrum
+            # pick out segment of spectrum
             sel = spec.wave > start_wave
             sel &= spec.wave < end_wave
             wave = spec.wave[sel]
@@ -256,11 +256,6 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
             
             full_model += segment_of_dispersion[1]
 
-        wave = np.linspace(2000, 40000, 19001) #wavelength grid for simulation
-        sel_wave = wave > start_wave
-        sel_wave &= wave < end_wave
-        wave = wave[sel_wave]
-
         if ngal > 0:
             print('adding galaxies to model')
             for i in tqdm(range(0,ngal)):
@@ -272,7 +267,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
                 thresh = 0.01 #threshold flux for segmentation map
 
                 gal_psf = iu.gal_postage_grid(psf_grid,xp,yp,fov_pixels=fov_pixels)
-                conv_prof = signal.convolve2d(gal_psf[0].data,testprof,mode='same') #! Setup PSF convolution
+                conv_prof = signal.convolve2d(gal_psf,testprof,mode='same') #! Setup PSF convolution
 
                 xpos = row['Xpos']
                 ypos = row['Ypos']
@@ -295,12 +290,27 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
                 selseg = sp[sp_lims[0]:sp_lims[1],sp_lims[2]:sp_lims[3]] > thresh
                 roman.seg[xp+gpad-fov_pixels:xp+gpad+fov_pixels,yp+gpad-fov_pixels:yp+gpad+fov_pixels][selseg] = photid
                 
-                #? This seems like we're reading the SED lots of time; idk, but i wonder if there's a way to read this fewer times?
                 #get sed and convert to spectrum
                 sim_fn = mockdir+'galacticus_FOV_EVERY100_sub_'+str(row['SIM'])+'.hdf5'
                 sim = h5py.File(sim_fn, 'r')
-                sed = sim['Outputs']['SED:observed:dust:Av1.6523'][row['IDX']]
-                flux = sed[sel_wave]
+                sed_flux = sim['Outputs']['SED:observed:dust:Av1.6523'][row['IDX']]
+
+                # initial cut to avoid nan values
+                wave = np.linspace(2000, 40000, 19001) #wavelength grid for simulation
+                sel_wave = wave > 10000
+                sel_wave &= wave <20000
+                wave = wave[sel_wave]
+                flux = sed_flux[sel_wave]
+                
+                gal_spec = S.ArraySpectrum(wave=wave, flux=flux, waveunits="angstroms", fluxunits="flam")
+                spec = gal_spec.renorm(mag, "abmag", bp) # renorm and convert units
+                spec.convert("flam") 
+
+                # pick out segment of spectrum
+                sel_wave = wave > start_wave
+                sel_wave &= wave < end_wave
+                wave = spec.wave[sel_wave]
+                flux = spec.flux[sel_wave]
 
                 # apodize/roll-on, roll-off
                 if start_wave != 10000:
@@ -308,12 +318,8 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
                 if end_wave != 20000:
                     flux[-spectrum_overlap:] *= back_y    
 
-                gal_spec = S.ArraySpectrum(wave=wave, flux=flux, waveunits="angstroms", fluxunits="flam")
-                spec = gal_spec.renorm(mag, "abmag", bp)
-                spec.convert("flam")
-                
                 segment_of_dispersion = roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=False, store=False,
-                                        is_cgs=True, spectrum_1d=[spec.wave, spec.flux])[1]
+                                        is_cgs=True, spectrum_1d=[wave, flux])[1]
                 
                 full_model += segment_of_dispersion
                 

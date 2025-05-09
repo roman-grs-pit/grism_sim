@@ -1,2 +1,2 @@
 #index star_template_index magnitude RA DEC
-0 154.0 1 9.45 1.05
+0 154.0 1.0 9.46 1.06

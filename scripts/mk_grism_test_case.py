@@ -1,6 +1,7 @@
 from astropy.table import Table
 import os
 import sys
+import time
 
 github_dir = sys.argv[1]
 os.environ["github_dir"] = github_dir
@@ -17,9 +18,13 @@ dec = 1
 pa = 0
 det_num = 1
 
-stars = Table.read(os.path.join(github_dir, "grism_sim/data/test_case.txt"), format="ascii")
-gals = None
+stars = Table.read(os.path.join(github_dir, "grism_sim/data/test_case_star.txt"), format="ascii")
+gals = Table.read(os.path.join(github_dir, "grism_sim/data/test_case_gal.txt"), format="ascii")
 
 args = [ra,dec,pa,det_num,stars,gals,outdir]
 
-dosim(args, dogal='n')
+start = time.time()
+dosim(args, dogal='y', mockdir="/Users/keith/astr/research_astr/bin/")
+end = time.time()
+
+print(f"dosim took: {end - start}")
