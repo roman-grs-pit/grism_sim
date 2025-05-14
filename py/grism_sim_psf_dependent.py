@@ -3,7 +3,7 @@ import h5py
 import numpy as np
 from scipy import signal
 from astropy.io import fits
-from astropy.table import Table
+from astropy.table import Table, join
 from astropy.wcs import WCS
 from astropy import units as u
 from astropy.coordinates import SkyCoord
@@ -23,6 +23,24 @@ import yaml
 github_dir_env=os.getenv('github_dir')
 if github_dir_env is None:
     print('github_dir environment variable has not been set, will cause problems if not explicitly set in function calss')
+
+
+def combine_overlaps(table_1, table_2):
+    """
+    This function can be used in a for loop to stitch together the input spectrum segments.
+    """
+
+    full_input = join(table_1, table_2, keys='wave', join_type="outer")
+
+    full_input["flux_1"].fill_value = 0
+    full_input["flux_2"].fill_value = 0
+    full_input = full_input.filled()
+
+    sum = full_input["flux_1"] + full_input["flux_2"]
+
+    sum_table = Table([full_input["wave"], sum], names=["wave", "flux"])
+
+    return sum_table
 
 def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='07242020',psf_cutout_size=365,extra_grism_name='',github_dir=github_dir_env,gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/'):
     #tel_ra,tel_dec correspond to the coordinates (in degrees) of the middle of the field (not the detector center)
@@ -60,7 +78,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     ra = dfoot[0][int(det_num)]['ra_cen']
     dec = dfoot[0][int(det_num)]['dec_cen']
 
-    tot_im_size = 4088+2*gpad #? I removed the pad from this size. I don't use it below. What impact does this have on the ra/dec placements?
+    tot_im_size = 4088+2*gpad 
 
     im_head = iu.fake_header_wcs(ra, dec, crpix2=tot_im_size/2,crpix1=tot_im_size/2, cdelt1=0.11, cdelt2=0.11,crota2=pa,naxis1=tot_im_size,naxis2=tot_im_size)
     im_wcs = WCS(im_head)
@@ -166,20 +184,15 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
 
     bins = np.linspace(minlam, maxlam, npsfs + 1)
 
+    # #! Troubleshooting
+    # star_spec_net = []
+    # gal_spec_net = []
+
     # START sim here
-    for ii, start_wave in enumerate(bins[:-1]):
+    for ii, start_wave in enumerate(bins[:-1]): 
+        end_wave = bins[ii+1] 
+
         print(f"starting at {start_wave}")
-        end_wave = bins[ii+1]
-
-        start_wave -= spectrum_overlap * 0.5
-        end_wave += spectrum_overlap * 0.5 - 1
-
-        # Stay within our spectrum limits (these could be extended or not hardcoded if needed)
-        if start_wave < 10000:
-            start_wave = 10000
-        
-        if end_wave > 20000:
-            end_wave = 20000
 
         # fid_psf = iu.get_psf(fov_pixels=pad-1, det=det) # Fiducial psf generation
         psf_grid = iu.create_psf_grid(wavelength=start_wave*10e-11, fov_pixels=fov_pixels, det=det) # PSF Grid generation
@@ -198,27 +211,32 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
             mag = stars[i]['magnitude']
             if xpos > 4088+2*gpad or ypos > 4088+2*gpad:
                 print(xpos,ypos,'out of bounds position')
-            xp = int(xpos)
+            xp = int(xpos) # Position determined by ra/dec, which includes gpad
             yp = int(ypos)
+            xtrue = xp - gpad # True detector position
+            ytrue = yp - gpad
             xoff = 0#xpos-xp
             yoff = 0#ypos-yp
 
             # sp = iu.star_postage_inpsf(mag,fid_psf) # PSF from fiducial
-            sp = iu.star_postage_grid(psf_grid,mag,xp,yp,fov_pixels=fov_pixels) # PSF from grid
-            #? Do we need to subtract the pad to xp, yp to get the actual detector position for STPSF?
+            sp = iu.star_postage_grid(psf_grid,mag,xtrue,ytrue,fov_pixels=fov_pixels) # PSF from grid
 
             # sp limits are needed to keep only what fits on the detector (plus pad)
-            sp_lims = [max(0,-(xp+gpad-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(xp+gpad+fov_pixels-det_with_pad)),
-            max(0,-(yp+gpad-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(yp+gpad+fov_pixels-det_with_pad))]
+            sp_lims = [max(0,-(yp+gpad-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(yp+gpad+fov_pixels-det_with_pad)),
+            max(0,-(xp+gpad-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(xp+gpad+fov_pixels-det_with_pad))]
 
             # Set direct image equal to sp; don't add
-            roman.direct.data["REF"][xp+gpad-fov_pixels:xp+gpad+fov_pixels,yp+gpad-fov_pixels:yp+gpad+fov_pixels] = sp[sp_lims[0]:sp_lims[1],sp_lims[2]:sp_lims[3]]
-            roman.direct.data['REF'] *= roman.direct.ref_photflam #? Copied from below. This is used by grizli to setup the ref? Do we need to use it here? It was commneted out before, but seems important to include?      
+            roman.direct.data["REF"][yp+gpad-fov_pixels:yp+gpad+fov_pixels, xp+gpad-fov_pixels:xp+gpad+fov_pixels] = sp[sp_lims[0]:sp_lims[1],sp_lims[2]:sp_lims[3]]
+            roman.direct.data['REF'] *= roman.direct.ref_photflam #? Copied from below. This is used by grizli to setup the ref? Do we need to use it here? It was commneted out before, but seems important to include?
 
             # Define selseg from original sp
             selseg = sp[sp_lims[0]:sp_lims[1],sp_lims[2]:sp_lims[3]] > thresh
             # set seg; use unique ids to make other spaces irrelevant (no need to reset between stars)
-            roman.seg[xp+gpad-fov_pixels:xp+gpad+fov_pixels,yp+gpad-fov_pixels:yp+gpad+fov_pixels][selseg] = photid 
+            roman.seg[yp+gpad-fov_pixels:yp+gpad+fov_pixels, xp+gpad-fov_pixels:xp+gpad+fov_pixels][selseg] = photid 
+
+            # Rotations after placement on detector
+            roman.direct.data["REF"] = np.rot90(roman.direct.data["REF"], k=3)
+            roman.seg = np.rot90(roman.seg, k=3)
 
             # STAR GRISM
             row = stars[i]
@@ -235,26 +253,51 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
             spec = star_spec.renorm(mag, "abmag", bp)
             spec.convert("flam")
 
+            # #! Troubleshooting
+            # sel = spec.wave >= 10000
+            # sel &= spec.wave <= 20000
+            # star_spec = Table([spec.wave[sel], spec.flux[sel]], names=["wave", "flux"])
+
+            # if-elses enforce minlam/maxlam bounds on the spectrum (and avoid issues with negative indicies)
+            if start_wave != minlam:
+                # Adjust start_wave to include overlap region
+                start_wave_index = np.searchsorted(spec.wave, start_wave, side="left")
+                start_index_w_overlap = start_wave_index - int(spectrum_overlap * 0.5)
+                sel = wave >= spec.wave[start_index_w_overlap]
+            else:
+                # Set lower limit on sel_wave
+                sel = wave >= start_wave
+
+            if end_wave != maxlam:
+                # Adjust end_wave to include overlap region
+                end_wave_index = np.searchsorted(spec.wave, end_wave, side="right")
+                end_index_w_overlap = end_wave_index + int(spectrum_overlap * 0.5 - 1) 
+                sel &= wave < spec.wave[end_index_w_overlap]
+            else:
+                # Set upper limit on sel_wave
+                sel &= wave <= end_wave
+            
             # pick out segment of spectrum
-            sel = spec.wave > start_wave
-            sel &= spec.wave < end_wave
             wave = spec.wave[sel]
             flux = spec.flux[sel]
 
             # apodize/roll-on, roll-off
-            if start_wave != 10000:
+            if start_wave != minlam:
                 flux[:spectrum_overlap] *= front_y
-            if end_wave != 20000:
+            if end_wave != maxlam:
                 flux[-spectrum_overlap:] *= back_y            
         
             # roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=True, store=False,
             #                         is_cgs=True, spectrum_1d=[spec.wave, spec.flux])
             
-            #? Is this catcher process necessary? Could we utilize in_place? That used to "cast a shadow." Does it still do that?
             segment_of_dispersion = roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=False, store=False,
                                     is_cgs=True, spectrum_1d=[wave, flux])
             
             full_model += segment_of_dispersion[1]
+
+            # #! Troubleshooting
+            # apodized_spec = Table([wave, flux], names=("wave","flux"))
+            # star_spec_net.append(apodized_spec)
 
         if ngal > 0:
             print('adding galaxies to model')
@@ -267,7 +310,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
                 thresh = 0.01 #threshold flux for segmentation map
 
                 gal_psf = iu.gal_postage_grid(psf_grid,xp,yp,fov_pixels=fov_pixels)
-                conv_prof = signal.convolve2d(gal_psf,testprof,mode='same') #! Setup PSF convolution
+                conv_prof = signal.convolve2d(gal_psf,testprof,mode='same') 
 
                 xpos = row['Xpos']
                 ypos = row['Ypos']
@@ -280,25 +323,29 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
                 sp = imflux*conv_prof
 
                 # sp limits are needed to keep only what fits on the detector (plus pad)
-                sp_lims = [max(0,-(xp+gpad-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(xp+gpad+fov_pixels-det_with_pad)),
-                max(0,-(yp+gpad-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(yp+gpad+fov_pixels-det_with_pad))]
+                sp_lims = [max(0,-(yp+gpad-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(yp+gpad+fov_pixels-det_with_pad)),
+                max(0,-(xp+gpad-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(xp+gpad+fov_pixels-det_with_pad))]
 
                 # Set direct image equal to sp; don't add
-                roman.direct.data["REF"][xp+gpad-fov_pixels:xp+gpad+fov_pixels,yp+gpad-fov_pixels:yp+gpad+fov_pixels] = sp[sp_lims[0]:sp_lims[1],sp_lims[2]:sp_lims[3]]
+                roman.direct.data["REF"][yp+gpad-fov_pixels:yp+gpad+fov_pixels, xp+gpad-fov_pixels:xp+gpad+fov_pixels] = sp[sp_lims[0]:sp_lims[1],sp_lims[2]:sp_lims[3]]
                 roman.direct.data['REF'] *= roman.direct.ref_photflam #? Do I need to process the ref image when I'm setting it directly in grizli? It was commneted out before, but seems important to include?
                 
                 selseg = sp[sp_lims[0]:sp_lims[1],sp_lims[2]:sp_lims[3]] > thresh
-                roman.seg[xp+gpad-fov_pixels:xp+gpad+fov_pixels,yp+gpad-fov_pixels:yp+gpad+fov_pixels][selseg] = photid
+                roman.seg[yp+gpad-fov_pixels:yp+gpad+fov_pixels, xp+gpad-fov_pixels:xp+gpad+fov_pixels][selseg] = photid
+
+                # Rotations after placement on detector
+                roman.direct.data["REF"] = np.rot90(roman.direct.data["REF"], k=3)
+                roman.seg = np.rot90(roman.seg, k=3)
                 
                 #get sed and convert to spectrum
                 sim_fn = mockdir+'galacticus_FOV_EVERY100_sub_'+str(row['SIM'])+'.hdf5'
                 sim = h5py.File(sim_fn, 'r')
                 sed_flux = sim['Outputs']['SED:observed:dust:Av1.6523'][row['IDX']]
 
-                # initial cut to avoid nan values
+                # initial cut to avoid errors from nan values
                 wave = np.linspace(2000, 40000, 19001) #wavelength grid for simulation
-                sel_wave = wave > 10000
-                sel_wave &= wave <20000
+                sel_wave = wave > minlam
+                sel_wave &= wave < maxlam
                 wave = wave[sel_wave]
                 flux = sed_flux[sel_wave]
                 
@@ -306,28 +353,54 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
                 spec = gal_spec.renorm(mag, "abmag", bp) # renorm and convert units
                 spec.convert("flam") 
 
+                # #! Troubleshooting
+                # sel = spec.wave >= 10000
+                # sel &= spec.wave <= 20000
+                # gal_spec = Table([spec.wave[sel], spec.flux[sel]], names=["wave", "flux"])
+
+                # if-elses enforce minlam/maxlam bounds on the spectrum (and avoid issues with negative indicies)
+                if start_wave != minlam:
+                    # Adjust start_wave to include overlap region
+                    start_wave_index = np.searchsorted(spec.wave, start_wave, side="left")
+                    start_index_w_overlap = start_wave_index - int(spectrum_overlap * 0.5)
+                    sel_wave = spec.wave >= spec.wave[start_index_w_overlap]
+                else:
+                    # Set lower limit on sel_wave
+                    sel_wave = spec.wave >= start_wave
+
+                if end_wave != maxlam:
+                    # Adjust end_wave to include overlap region
+                    end_wave_index = np.searchsorted(spec.wave, end_wave, side="right")
+                    end_index_w_overlap = end_wave_index + int(spectrum_overlap * 0.5 - 1) 
+                    sel_wave &= spec.wave < spec.wave[end_index_w_overlap]
+                else:
+                    # Set upper limit on sel_wave
+                    sel_wave &= spec.wave <= end_wave
+
                 # pick out segment of spectrum
-                sel_wave = wave > start_wave
-                sel_wave &= wave < end_wave
                 wave = spec.wave[sel_wave]
                 flux = spec.flux[sel_wave]
 
                 # apodize/roll-on, roll-off
-                if start_wave != 10000:
+                if start_wave != minlam:
                     flux[:spectrum_overlap] *= front_y
-                if end_wave != 20000:
+                if end_wave != maxlam:
                     flux[-spectrum_overlap:] *= back_y    
 
                 segment_of_dispersion = roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=False, store=False,
                                         is_cgs=True, spectrum_1d=[wave, flux])[1]
                 
                 full_model += segment_of_dispersion
+
+                # #! Troubleshooting
+                # apodized_spec = Table([wave, flux], names=("wave","flux"))
+                # gal_spec_net.append(apodized_spec)
                 
     # There is no direct image or segmentation file to save. The only savable/non-intermediate product is the grism model. 
     # We'd need to run a seperate direct image loop using the H Band filter and an effective PSF to get a realistic direct image.
 
     #save grism model image + noise
-    roman.model = full_model
+    roman.model = np.rot90(full_model, k=1)
     
     hdu_list = fits.open(empty_grism)
     if gpad != 0:
@@ -343,3 +416,40 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     hdu_list.writeto(out_fn, overwrite=True)
     hdu_list.close()
     print('wrote to '+out_fn)
+
+    # #! Troubleshooting Steps - Compares input to grizli to original spectrum
+    # # Combine all inputs into a single array
+    # for ii in range(len(star_spec_net)):
+    #     if ii == 0:
+    #         star_full_input = star_spec_net[0]
+    #     else:
+    #         star_full_input = combine_overlaps(star_full_input, star_spec_net[ii])
+
+    # for ii in range(len(gal_spec_net)):
+    #     if ii == 0:
+    #         gal_full_input = gal_spec_net[0]
+    #     else:
+    #         gal_full_input = combine_overlaps(gal_full_input, gal_spec_net[ii])
+
+    # fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
+
+    # ax1.plot(star_full_input["wave"], star_full_input["flux"], color='b', alpha=0.5, label="Input flux")
+    # ax1.plot(star_spec["wave"], star_spec["flux"], color='r', alpha=0.5, label="True flux")
+    # ax1.legend()
+    # ax1.set_title("Star: Input flux vs True flux")
+
+    # ax2.plot(star_full_input["wave"], star_spec["flux"] - star_full_input["flux"], label="Diff")
+    # ax2.legend()
+    # ax2.set_title("Difference Between truth and input")
+
+    # ax3.plot(gal_full_input["wave"], gal_full_input["flux"], color='b', alpha=0.5, label="Input flux")
+    # ax3.plot(gal_spec["wave"], gal_spec["flux"], color='r', alpha=0.5, label="True flux")
+    # ax3.legend()
+    # ax3.set_title("Galaxy: Input flux vs True flux")
+
+    # ax4.plot(gal_full_input["wave"], gal_spec["flux"] - gal_full_input["flux"], label="Diff")
+    # ax4.legend()
+    # ax4.set_title("Difference Between truth and input")
+
+    # fig.figsize = [50, 50]
+    # plt.show()

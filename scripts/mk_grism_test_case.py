@@ -19,6 +19,7 @@ pa = 0
 det_num = 1
 
 stars = Table.read(os.path.join(github_dir, "grism_sim/data/test_case_star.txt"), format="ascii")
+# stars = Table.read(os.path.join(github_dir, "star_fields/data/sim_star_cat_galacticus.txt"), format="ascii")
 gals = Table.read(os.path.join(github_dir, "grism_sim/data/test_case_gal.txt"), format="ascii")
 
 args = [ra,dec,pa,det_num,stars,gals,outdir]
