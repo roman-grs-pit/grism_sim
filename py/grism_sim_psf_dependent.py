@@ -25,22 +25,23 @@ if github_dir_env is None:
     print('github_dir environment variable has not been set, will cause problems if not explicitly set in function calss')
 
 
-def combine_overlaps(table_1, table_2):
-    """
-    This function can be used in a for loop to stitch together the input spectrum segments.
-    """
+# #! Function for Troubleshooting purposes
+# def combine_overlaps(table_1, table_2):
+#     """
+#     This function can be used in a for loop to stitch together the input spectrum segments.
+#     """
 
-    full_input = join(table_1, table_2, keys='wave', join_type="outer")
+#     full_input = join(table_1, table_2, keys='wave', join_type="outer")
 
-    full_input["flux_1"].fill_value = 0
-    full_input["flux_2"].fill_value = 0
-    full_input = full_input.filled()
+#     full_input["flux_1"].fill_value = 0
+#     full_input["flux_2"].fill_value = 0
+#     full_input = full_input.filled()
 
-    sum = full_input["flux_1"] + full_input["flux_2"]
+#     sum = full_input["flux_1"] + full_input["flux_2"]
 
-    sum_table = Table([full_input["wave"], sum], names=["wave", "flux"])
+#     sum_table = Table([full_input["wave"], sum], names=["wave", "flux"])
 
-    return sum_table
+#     return sum_table
 
 def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='07242020',psf_cutout_size=365,extra_grism_name='',github_dir=github_dir_env,gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/'):
     #tel_ra,tel_dec correspond to the coordinates (in degrees) of the middle of the field (not the detector center)
