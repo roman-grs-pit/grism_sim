@@ -6,6 +6,7 @@ wfi = webbpsf.roman.WFI()
 wfi.filter = "GRISM0" #eventually make this detector specific
 
 def create_psf_grid(wavelength=1.5e-6, fov_pixels=364, det="SCA01"):
+    wfi.detector = det
     grid = wfi.psf_grid(all_detectors=False, use_detsampled_psf=True, monochromatic=wavelength, fov_pixels=fov_pixels)
     return grid
 
@@ -16,7 +17,16 @@ def star_postage_grid(psf_grid, mag, detx=2044, dety=2044, fov_pixels=364):
     y_0 = int(dety)
     y, x = np.mgrid[y_0-fov_pixels:y_0+fov_pixels, x_0-fov_pixels:x_0+fov_pixels]
 
-    psf = psf_grid.evaluate(x=x, y=y, x_0=detx, y_0=dety, flux=flux)
+    psf = psf_grid.evaluate(x=x, y=y, x_0=detx, y_0=dety, flux=flux).astype(np.float32)
+    return psf
+
+def gal_postage_grid(psf_grid, detx=2044, dety=2044, fov_pixels=364, flux=1):
+
+    x_0 = int(detx)
+    y_0 = int(dety)
+    y, x = np.mgrid[y_0-fov_pixels:y_0+fov_pixels, x_0-fov_pixels:x_0+fov_pixels]
+
+    psf = psf_grid.evaluate(x=x, y=y, x_0=detx, y_0=dety, flux=flux) #? What's the right flux for this?
     return psf
 
 #fiducial zero point set based on 2022 sim below
