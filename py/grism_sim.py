@@ -153,6 +153,9 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,c
             fov_pixels = pad-1
             full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
 
+    # rotates roman.direct.data["REF"] and seg map for stars; galaxy seg map rotated later
+    full_image = np.rot90(full_image, k=3)
+    full_seg = np.rot90(full_seg, k=3)
     
     hdu = fits.PrimaryHDU(data=full_seg[pad:-pad,pad:-pad])
     hdul = fits.HDUList([hdu])
@@ -273,7 +276,9 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,c
         selseg = sp > thresh
         full_seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels][selseg] = photid
         masked_seg = full_seg[pad:-pad,pad:-pad]
-        roman.seg = np.asarray(masked_seg,dtype=np.float32)
+        roman.seg = np.rot90(np.asarray(masked_seg,dtype=np.float32), k=3)
+        # galaxy seg map rotation
+        # seg map is built on unrotated full_image and must be rotated before dispersion
         
         #get sed and convert to spectrum
         sim_fn = mockdir+'galacticus_FOV_EVERY100_sub_'+str(row['SIM'])+'.hdf5'
@@ -288,7 +293,9 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,c
                                    is_cgs=True, spectrum_1d=[spec.wave, spec.flux])
     
     
-    
+    # rotate model back to correct orientation
+    roman.model = np.rot90(roman.model)
+    roman.grism.data['SCI'] = np.rot90(roman.grism.data['SCI'])
     
     #save grism model image + noise
     
