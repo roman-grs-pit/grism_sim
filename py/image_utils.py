@@ -1,6 +1,10 @@
 import numpy as np
-import stpsf
 from astropy.io import fits
+
+try:
+    import stpsf
+except:
+    import webbpsf as stpsf
 
 wfi = stpsf.roman.WFI()
 wfi.filter = "GRISM0" #eventually make this detector specific
