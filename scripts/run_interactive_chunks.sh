@@ -2,7 +2,7 @@
 module load conda
 conda activate /global/common/software/m4943/grizli0
 PYTHONPATH=$PYTHONPATH:/global/common/software/m4943/grizli0/grism_sim/py
-export WEBBPSF_PATH="/global/cfs/cdirs/m4943/grismsim/webbpsf-data"
+export STPSF_PATH="/global/cfs/cdirs/m4943/grismsim/stpsf-data"
 export github_dir=/global/common/software/m4943/grizli0/
 
 for (( ndith=0;ndith<=1;ndith++ ))

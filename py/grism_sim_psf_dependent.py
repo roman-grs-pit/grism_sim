@@ -3,20 +3,20 @@ import h5py
 import numpy as np
 from scipy import signal
 from astropy.io import fits
-from astropy.table import Table, join
+from astropy.table import Table#, join
 from astropy.wcs import WCS
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 import os, sys
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 # Spectra tools
 import pysynphot as S
-import webbpsf
 
 from grizli.model import GrismFLT
 import grizli.fake_image
 
 import image_utils as iu
+import psf_grid_utils as pgu
 
 import yaml
 
@@ -61,8 +61,8 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     fn_root = 'refimage_ra%s_dec%s_pa%s_det%s' % (tel_ra,tel_dec,pa,det)
 
     empty_direct_fits_out_nopad = os.path.join(output_dir,fn_root+'_nopad.fits')
-    nopad_seg = os.path.join(output_dir,fn_root+ "_seg_nopad.fits")
-    pad_seg = os.path.join(output_dir,fn_root+ "seg_wpad.fits")
+    # nopad_seg = os.path.join(output_dir,fn_root+ "_seg_nopad.fits")
+    # pad_seg = os.path.join(output_dir,fn_root+ "seg_wpad.fits")
     #example_direct = args.roman_2022sim_dir + 'products/FOV0/roll_0/dither_0x_0y/SCA1/GRS_FOV0_roll0_dx0_dy0_SCA1_direct_final.fits'
     
     #this ends up setting the background noise and defines the WCS
@@ -196,7 +196,10 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
         print(f"starting at {start_wave}")
 
         # fid_psf = iu.get_psf(fov_pixels=pad-1, det=det) # Fiducial psf generation
-        psf_grid = iu.create_psf_grid(wavelength=start_wave*10e-11, fov_pixels=fov_pixels, det=det) # PSF Grid generation
+        # psf_grid = iu.create_psf_grid(wavelength=start_wave*10e-11, fov_pixels=fov_pixels, det=det) # PSF Grid generation
+
+        psf_filename = f"wfi_grism0_fovp364_wave{start_wave:.0f}_{det}.fits".lower() # {instrument}_{filter}_{fovp}_wave{wavelength}_{det}.fits
+        psf_grid = pgu.load_psf_grid(psf_filename)
 
         thresh = 0.01 #threshold flux for segmentation map
         det_with_pad = grizli_conf["detector_size"] + 2*gpad
@@ -388,12 +391,15 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
                 if end_wave != maxlam:
                     flux[-spectrum_overlap:] *= back_y    
 
-                segment_of_dispersion = roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=False, store=False,
-                                        is_cgs=True, spectrum_1d=[wave, flux])[1]
-                
-                full_model += segment_of_dispersion
+                # roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=True, store=False,
+                #         is_cgs=True, spectrum_1d=[spec.wave, spec.flux])
 
-                # #! Troubleshooting
+                segment_of_dispersion = roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=False, store=False,
+                                        is_cgs=True, spectrum_1d=[wave, flux])
+                
+                full_model += segment_of_dispersion[1]
+
+                # # ! Troubleshooting
                 # apodized_spec = Table([wave, flux], names=("wave","flux"))
                 # gal_spec_net.append(apodized_spec)
                 

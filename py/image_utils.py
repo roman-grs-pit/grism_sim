@@ -1,8 +1,12 @@
 import numpy as np
-import webbpsf
 from astropy.io import fits
 
-wfi = webbpsf.roman.WFI()
+try:
+    import stpsf
+except:
+    import webbpsf as stpsf
+
+wfi = stpsf.roman.WFI()
 wfi.filter = "GRISM0" #eventually make this detector specific
 
 def create_psf_grid(wavelength=1.5e-6, fov_pixels=364, det="SCA01"):

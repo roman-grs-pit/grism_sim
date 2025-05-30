@@ -3,9 +3,11 @@ import os
 import sys
 import time
 
-github_dir = sys.argv[1]
-os.environ["github_dir"] = github_dir
-outdir = os.path.join(github_dir, "bin")
+github_dir = os.getenv('github_dir')
+if github_dir is None:
+    print('github_dir environment variable has not been set, will cause problems if not explicitly set in function calss')
+
+outdir = os.getenv("SCRATCH")
 
 from grism_sim_psf_dependent import mk_grism
 
@@ -25,7 +27,7 @@ gals = Table.read(os.path.join(github_dir, "grism_sim/data/test_case_gal.txt"), 
 args = [ra,dec,pa,det_num,stars,gals,outdir]
 
 start = time.time()
-dosim(args, dogal='y', mockdir="/Users/keith/astr/research_astr/bin/")
+dosim(args, dogal='y')
 end = time.time()
 
 print(f"dosim took: {end - start}")
