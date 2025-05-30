@@ -24,6 +24,7 @@ import os, sys
 import matplotlib.pyplot as plt
 # Spectra tools
 import pysynphot as S
+import webbpsf
 
 from grizli.model import GrismFLT
 
