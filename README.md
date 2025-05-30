@@ -10,7 +10,7 @@ conda activate /global/common/software/m4943/grizli0
 
 PYTHONPATH=$PYTHONPATH:/global/common/software/m4943/grizli0/grism_sim/py
 
-export WEBBPSF_PATH="/global/cfs/cdirs/m4943/grismsim/webbpsf-data"
+export STPSF_PATH="/global/cfs/cdirs/m4943/grismsim/stpsf-data"
 
 export github_dir=/global/common/software/m4943/grizli0/
 ```
@@ -44,23 +44,23 @@ basemap 1.3.2 requires numpy<1.23,>=1.21; python_version >= "3.7", but you have 
 ```
 pip install ".[test]"
 
-pip install webbpsf
+pip install stpsf
 
 mkdir /global/cfs/cdirs/m4943/grismsim
 
-export WEBBPSF_PATH="/global/cfs/cdirs/m4943/grismsim/webbpsf-data"
+export STPSF_PATH="/global/cfs/cdirs/m4943/grismsim/stpsf-data"
 
-cd $WEBBPSF_PATH
+cd $STPSF_PATH
 
 cd .. 
-#otherwise, get double webbpsf-data directory
+#otherwise, get double stpsf-data directory
 
-#check for updated file here https://webbpsf.readthedocs.io/en/latest/installation.html
-wget https://stsci.box.com/shared/static/qxpiaxsjwo15ml6m4pkhtk36c9jgj70k.gz 
+#check for updated file here https://stpsf.readthedocs.io/en/latest/installation.html
+wget https://stsci.box.com/shared/static/kqfolg2bfzqc4mjkgmujo06d3iaymahv.gz
 
-mv qxpiaxsjwo15ml6m4pkhtk36c9jgj70k.gz  webbpsf-data-LATEST.tar.gz
+mv kqfolg2bfzqc4mjkgmujo06d3iaymahv.gz  stpsf-data-LATEST.tar.gz
 
-tar xzvf webbpsf-data-LATEST.tar.gz
+tar xzvf stpsf-data-LATEST.tar.gz
 
 cd /global/common/software/m4943/grizli0
 
