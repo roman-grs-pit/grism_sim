@@ -226,17 +226,20 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
             sp = iu.star_postage_grid(psf_grid,mag,xtrue,ytrue,fov_pixels=fov_pixels) # PSF from grid
 
             # sp limits are needed to keep only what fits on the detector (plus pad)
-            sp_lims = [max(0,-(yp+gpad-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(yp+gpad+fov_pixels-det_with_pad)),
-            max(0,-(xp+gpad-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(xp+gpad+fov_pixels-det_with_pad))]
+            sp_lims = [max(0,-(yp-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(yp+fov_pixels-det_with_pad)),
+                       max(0,-(xp-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(xp+fov_pixels-det_with_pad))]
+
+            roman_lims = [max(0, yp-fov_pixels), min(det_with_pad, yp+fov_pixels), 
+                          max(0, xp-fov_pixels), min(det_with_pad, xp+fov_pixels)]
 
             # Set direct image equal to sp; don't add
-            roman.direct.data["REF"][yp+gpad-fov_pixels:yp+gpad+fov_pixels, xp+gpad-fov_pixels:xp+gpad+fov_pixels] = sp[sp_lims[0]:sp_lims[1],sp_lims[2]:sp_lims[3]]
+            roman.direct.data["REF"][roman_lims[0]:roman_lims[1], roman_lims[2]:roman_lims[3]] = sp[sp_lims[0]:sp_lims[1],sp_lims[2]:sp_lims[3]]
             roman.direct.data['REF'] *= roman.direct.ref_photflam #? Copied from below. This is used by grizli to setup the ref? Do we need to use it here? It was commneted out before, but seems important to include?
 
             # Define selseg from original sp
             selseg = sp[sp_lims[0]:sp_lims[1],sp_lims[2]:sp_lims[3]] > thresh
             # set seg; use unique ids to make other spaces irrelevant (no need to reset between stars)
-            roman.seg[yp+gpad-fov_pixels:yp+gpad+fov_pixels, xp+gpad-fov_pixels:xp+gpad+fov_pixels][selseg] = photid 
+            roman.seg[roman_lims[0]:roman_lims[1], roman_lims[2]:roman_lims[3]][selseg] = photid 
 
             # Rotations after placement on detector
             roman.direct.data["REF"] = np.rot90(roman.direct.data["REF"], k=3)
@@ -327,15 +330,18 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
                 sp = imflux*conv_prof
 
                 # sp limits are needed to keep only what fits on the detector (plus pad)
-                sp_lims = [max(0,-(yp+gpad-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(yp+gpad+fov_pixels-det_with_pad)),
-                max(0,-(xp+gpad-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(xp+gpad+fov_pixels-det_with_pad))]
+                sp_lims = [max(0,-(yp-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(yp+fov_pixels-det_with_pad)),
+                           max(0,-(xp-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(xp+fov_pixels-det_with_pad))]
+
+                roman_lims = [max(0, yp-fov_pixels), min(det_with_pad, yp+fov_pixels), 
+                              max(0, xp-fov_pixels), min(det_with_pad, xp+fov_pixels)]
 
                 # Set direct image equal to sp; don't add
-                roman.direct.data["REF"][yp+gpad-fov_pixels:yp+gpad+fov_pixels, xp+gpad-fov_pixels:xp+gpad+fov_pixels] = sp[sp_lims[0]:sp_lims[1],sp_lims[2]:sp_lims[3]]
+                roman.direct.data["REF"][roman_lims[0]:roman_lims[1], roman_lims[2]:roman_lims[3]] = sp[sp_lims[0]:sp_lims[1],sp_lims[2]:sp_lims[3]]
                 roman.direct.data['REF'] *= roman.direct.ref_photflam #? Do I need to process the ref image when I'm setting it directly in grizli? It was commneted out before, but seems important to include?
                 
                 selseg = sp[sp_lims[0]:sp_lims[1],sp_lims[2]:sp_lims[3]] > thresh
-                roman.seg[yp+gpad-fov_pixels:yp+gpad+fov_pixels, xp+gpad-fov_pixels:xp+gpad+fov_pixels][selseg] = photid
+                roman.seg[roman_lims[0]:roman_lims[1], roman_lims[2]:roman_lims[3]][selseg] = photid
 
                 # Rotations after placement on detector
                 roman.direct.data["REF"] = np.rot90(roman.direct.data["REF"], k=3)
