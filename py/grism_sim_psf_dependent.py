@@ -300,7 +300,11 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
             segment_of_dispersion = roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=False, store=False,
                                     is_cgs=True, spectrum_1d=[wave, flux])
             
-            full_model += segment_of_dispersion[1]
+            # compute_model_orders returns a boolean IF the dispersion would not land on the detector
+            try:
+                full_model += segment_of_dispersion[1]
+            except TypeError: # catch "cannot index bool" error
+                continue
 
             # #! Troubleshooting
             # apodized_spec = Table([wave, flux], names=("wave","flux"))
@@ -403,7 +407,11 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
                 segment_of_dispersion = roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=False, store=False,
                                         is_cgs=True, spectrum_1d=[wave, flux])
                 
-                full_model += segment_of_dispersion[1]
+                # compute_model_orders returns a boolean IF the dispersion would not land on the detector
+                try:
+                    full_model += segment_of_dispersion[1] # catch "cannot index bool" error
+                except TypeError:
+                    continue
 
                 # # ! Troubleshooting
                 # apodized_spec = Table([wave, flux], names=("wave","flux"))
