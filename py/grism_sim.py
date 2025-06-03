@@ -26,7 +26,7 @@ if github_dir_env is None:
 
 def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='07242020',psf_cutout_size=365,extra_grism_name='',github_dir=github_dir_env,gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/'):
     #tel_ra,tel_dec correspond to the coordinates (in degrees) of the middle of the field (not the detector center)
-    #pa is the position angle (in degrees)
+    #pa is the position angle (in degrees), relative to lines of ra=constant; note, requires +60 on pa for wfi_sky_pointing
     #det_num is an integer corresponding to the detector number
     #star_input is a table or array with columns 'RA', 'DEC', 'magnitude', 'star_template_index'
     #gal_input is a table or array with columns...
@@ -56,7 +56,7 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,c
     import roman_coords_transform as ctrans
     code_data_dir = github_dir+'/observing-program/data/'
     rctrans = ctrans.RomanCoordsTransform(file_path=code_data_dir)
-    dfoot = rctrans.wfi_sky_pointing(tel_ra, tel_dec, pa, ds9=False)
+    dfoot = rctrans.wfi_sky_pointing(tel_ra, tel_dec, pa+60, ds9=False)
     ra = dfoot[0][int(det_num)]['ra_cen']
     dec = dfoot[0][int(det_num)]['dec_cen']
 
