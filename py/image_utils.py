@@ -79,10 +79,11 @@ def fake_header_wcs(crval1, crval2, crpix2=2044,crpix1=2044, cdelt1=0.11, cdelt2
     return add_wcs(hdu,crval1, crval2, crpix2,crpix1, cdelt1, cdelt2, crota2,naxis1,naxis2)
 
 
-def add_wcs(hdu,crval1, crval2, crpix2=2044,crpix1=2044, cdelt1=0.11, cdelt2=0.11,
+def add_wcs(hdu,crval1, crval2, crpix2=2044,crpix1=2044, cdelt1=-0.11, cdelt2=0.11,
                 crota2=0.0,naxis1=4088,naxis2=4088):
 
     #add wcs to existing header
+    #maintain consistency with https://github.com/roman-grs-pit/observing-program/blob/main/py/footprintutils.py, at some point make both use same function
     # crota2 - degree
     # cdelt1 - arcsec
     # cdelt2 - arcsec
@@ -96,11 +97,17 @@ def add_wcs(hdu,crval1, crval2, crpix2=2044,crpix1=2044, cdelt1=0.11, cdelt2=0.1
     cdelt1 /= 3600. # deg
     cdelt2 /= 3600. # deg
 
-    cd1_1 = -cdelt1*np.cos(theta)
-    cd1_2 = -cdelt2*np.sin(theta)
-    cd2_1 = -cdelt1*np.sin(theta)
-    cd2_2 = cdelt2*np.cos(theta)
+    R = np.array([
+        [np.cos(theta), np.sin(theta)],
+        [-1*np.sin(theta), np.cos(theta)],
+    ])
 
+
+    cd1_1 = cdelt1*R[0,0]
+    cd1_2 = cdelt2*R[0,1]
+    cd2_1 = cdelt1*R[1,0]
+    cd2_2 = cdelt2*R[1,1]
+                    
     hdu.header.set('NAXIS',2) # pixels
     hdu.header.set('NAXIS1',naxis1) # pixels
     hdu.header.set('NAXIS2',naxis2) # pixels
