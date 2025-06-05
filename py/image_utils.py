@@ -79,7 +79,7 @@ def fake_header_wcs(crval1, crval2, crpix2=2044,crpix1=2044, cdelt1=0.11, cdelt2
     return add_wcs(hdu,crval1, crval2, crpix2,crpix1, cdelt1, cdelt2, crota2,naxis1,naxis2)
 
 
-def add_wcs(hdu,crval1, crval2, crpix2=2044,crpix1=2044, cdelt1=-0.11, cdelt2=0.11,
+def add_wcs(hdu,crval1, crval2, crpix2=2044,crpix1=2044, cdelt1=0.11, cdelt2=0.11,
                 crota2=0.0,naxis1=4088,naxis2=4088):
 
     #add wcs to existing header
@@ -98,7 +98,7 @@ def add_wcs(hdu,crval1, crval2, crpix2=2044,crpix1=2044, cdelt1=-0.11, cdelt2=0.
     cdelt2 /= 3600. # deg
 
     R = np.array([
-        [np.cos(theta), np.sin(theta)],
+        [1*np.cos(theta), np.sin(theta)],
         [-1*np.sin(theta), np.cos(theta)],
     ])
 
