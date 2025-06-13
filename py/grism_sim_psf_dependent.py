@@ -4,9 +4,9 @@ import numpy as np
 from scipy import signal
 from astropy.io import fits
 from astropy.table import Table#, join
-from astropy.wcs import WCS
-from astropy import units as u
-from astropy.coordinates import SkyCoord
+# from astropy.wcs import WCS
+# from astropy import units as u
+# from astropy.coordinates import SkyCoord
 import os, sys
 # import matplotlib.pyplot as plt
 # Spectra tools
@@ -15,6 +15,7 @@ import pysynphot as S
 from grizli.model import GrismFLT
 import grizli.fake_image
 
+import pysiaf # use for WCS instead of iu functions
 import image_utils as iu
 import psf_grid_utils as pgu
 
@@ -49,22 +50,37 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     background = grizli_conf["grism_background"]
     EXPTIME = 301 
     NEXP = 1     
-
-    sys.path.append(github_dir+'/observing-program/py')
-    import roman_coords_transform as ctrans
-    code_data_dir = github_dir+'/observing-program/data/'
-    rctrans = ctrans.RomanCoordsTransform(file_path=code_data_dir)
-    dfoot = rctrans.wfi_sky_pointing(tel_ra, tel_dec, pa+60, ds9=False)
-    ra = dfoot[0][int(det_num)]['ra_cen']
-    dec = dfoot[0][int(det_num)]['dec_cen']
-
     tot_im_size = 4088+2*gpad 
 
-    im_head = iu.fake_header_wcs(ra, dec, crpix2=tot_im_size/2,crpix1=tot_im_size/2,crota2=pa,naxis1=tot_im_size,naxis2=tot_im_size)
-    im_wcs = WCS(im_head)
+    # * Deprecated WCS; we use pysiaf now
+    # sys.path.append(github_dir+'/observing-program/py')
+    # import roman_coords_transform as ctrans
+    # code_data_dir = github_dir+'/observing-program/data/'
+    # rctrans = ctrans.RomanCoordsTransform(file_path=code_data_dir)
+    # dfoot = rctrans.wfi_sky_pointing(tel_ra, tel_dec, pa+60, ds9=False)
+    # ra = dfoot[0][int(det_num)]['ra_cen']
+    # dec = dfoot[0][int(det_num)]['dec_cen']
 
-    star_coords = SkyCoord(ra=star_input['RA']*u.degree,dec=star_input['DEC']*u.degree, frame='icrs')
-    star_xy = im_wcs.world_to_pixel(star_coords)
+    # im_head = iu.fake_header_wcs(ra, dec, crpix2=tot_im_size/2,crpix1=tot_im_size/2,crota2=pa,naxis1=tot_im_size,naxis2=tot_im_size)
+    # im_wcs = WCS(im_head)
+
+    # star_coords = SkyCoord(ra=star_input['RA']*u.degree,dec=star_input['DEC']*u.degree, frame='icrs')
+    # star_xy = im_wcs.world_to_pixel(star_coords)
+
+    siaf = pysiaf.Siaf("roman")
+    wfi_siaf = siaf["WFI{:02}_FULL".format(det_num)]
+    
+    # Use WFI_CEN for aiming; may switch to boresight aiming eventually
+    v2ref = siaf["WFI_CEN"].V2Ref
+    v3ref = siaf["WFI_CEN"].V3Ref
+
+    attmat = pysiaf.utils.rotations.attitude_matrix(v2ref, v3ref, tel_ra, tel_dec, pa) # pysiaf pa is 60 more than image_utils pa (i.e. siaf_pa = iu_pa + 60)
+
+    wfi_siaf.set_attitude_matrix(attmat)
+    ra, dec = wfi_siaf.det_to_sky(2043, 2043) # I believe pysiaf uses 0-index for origin pixel; thus, center pix is 2043 not 2044
+
+    star_xy_siaf = wfi_siaf.sky_to_sci(star_input["RA"], star_input["DEC"])
+    star_xy = (star_xy_siaf[0] + gpad, star_xy_siaf[1] + gpad)
     
     sel_ondet = star_xy[0] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
     sel_ondet &= star_xy[0] < 4088 + 2*( gpad)
@@ -80,8 +96,11 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
 
     # Cuts galaxy catalog and preps convolution info?
     if dogal == 'y':
-        gal_coords = SkyCoord(ra=(gal_input['RA'])*u.degree,dec=gal_input['DEC']*u.degree, frame='icrs')
-        gal_xy = im_wcs.world_to_pixel(gal_coords)
+        # gal_coords = SkyCoord(ra=(gal_input['RA'])*u.degree,dec=gal_input['DEC']*u.degree, frame='icrs')
+        # gal_xy = im_wcs.world_to_pixel(gal_coords)
+
+        gal_xy_siaf = wfi_siaf.sky_to_sci(gal_input["RA"], gal_input["DEC"])
+        gal_xy = (gal_xy_siaf[0] + gpad, gal_xy_siaf[1] + gpad)
     
         sel_ondet = gal_xy[0] > 0
         sel_ondet &= gal_xy[0] < 4088 + 2*( gpad)
@@ -116,7 +135,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     phdu.header["EXPTIME"] = 141
     shp = full_model.shape
     phdu.header = iu.add_wcs(phdu,ra, dec, crpix2=shp[1]/2,crpix1=shp[0]/2,
-                crota2=pa,naxis1=shp[0],naxis2=shp[1])
+                             crota2=pa,naxis1=shp[0],naxis2=shp[1])
 
     err = np.random.poisson(10,full_model.shape)*0.001 #np.zeros(full_model.shape)
     ihdu = fits.ImageHDU(data=full_model,name='SCI',header=phdu.header)
