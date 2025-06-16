@@ -26,7 +26,7 @@ if github_dir_env is None:
     print('github_dir environment variable has not been set, will cause problems if not explicitly set in function calss')
 
 
-def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='07242020',psf_cutout_size=365,extra_grism_name='',
+def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='07242020',extra_grism_name='',
              github_dir=github_dir_env,gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,
              mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/'):
     #tel_ra,tel_dec correspond to the coordinates (in degrees) of the middle of the field (not the detector center)
@@ -41,7 +41,6 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     with open(conf_file) as f:
         grizli_conf = yaml.safe_load(f)
     
-    pad = psf_cutout_size
     gpad = grizli_conf["pad"]
     fn_root = 'refimage_ra%s_dec%s_pa%s_det%s' % (tel_ra,tel_dec,pa,det)
 
@@ -50,24 +49,9 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     #this ends up setting the background noise and defines the WCS
         
     background = grizli_conf["grism_background"]
-    EXPTIME = 301 
+    EXPTIME = grizli_conf["GEXPTIME"] 
     NEXP = 1     
-    tot_im_size = 4088+2*gpad 
-
-    # * Deprecated WCS; we use pysiaf now
-    # sys.path.append(github_dir+'/observing-program/py')
-    # import roman_coords_transform as ctrans
-    # code_data_dir = github_dir+'/observing-program/data/'
-    # rctrans = ctrans.RomanCoordsTransform(file_path=code_data_dir)
-    # dfoot = rctrans.wfi_sky_pointing(tel_ra, tel_dec, pa+60, ds9=False)
-    # ra = dfoot[0][int(det_num)]['ra_cen']
-    # dec = dfoot[0][int(det_num)]['dec_cen']
-
-    # im_head = iu.fake_header_wcs(ra, dec, crpix2=tot_im_size/2,crpix1=tot_im_size/2,crota2=pa,naxis1=tot_im_size,naxis2=tot_im_size)
-    # im_wcs = WCS(im_head)
-
-    # star_coords = SkyCoord(ra=star_input['RA']*u.degree,dec=star_input['DEC']*u.degree, frame='icrs')
-    # star_xy = im_wcs.world_to_pixel(star_coords)
+    tot_im_size = grizli_conf["detector_size"] + 2*gpad 
 
     siaf = pysiaf.Siaf("roman")
     wfi_siaf = siaf["WFI{:02}_FULL".format(det_num)]
@@ -85,9 +69,9 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     star_xy = (star_xy_siaf[0] + gpad, star_xy_siaf[1] + gpad)
     
     sel_ondet = star_xy[0] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
-    sel_ondet &= star_xy[0] < 4088 + 2*( gpad)
+    sel_ondet &= star_xy[0] < tot_im_size
     sel_ondet &= star_xy[1] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
-    sel_ondet &= star_xy[1] < 4088 + 2*( gpad)
+    sel_ondet &= star_xy[1] < tot_im_size
     
     print('cutting stars to be on detector + padded area')
     stars = star_input[sel_ondet]
@@ -98,24 +82,19 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
 
     # Cuts galaxy catalog and preps convolution info?
     if dogal == 'y':
-        # gal_coords = SkyCoord(ra=(gal_input['RA'])*u.degree,dec=gal_input['DEC']*u.degree, frame='icrs')
-        # gal_xy = im_wcs.world_to_pixel(gal_coords)
-
         gal_xy_siaf = wfi_siaf.sky_to_sci(gal_input["RA"], gal_input["DEC"])
         gal_xy = (gal_xy_siaf[0] + gpad, gal_xy_siaf[1] + gpad)
     
         sel_ondet = gal_xy[0] > 0
-        sel_ondet &= gal_xy[0] < 4088 + 2*( gpad)
+        sel_ondet &= gal_xy[0] < tot_im_size
         sel_ondet &= gal_xy[1] > 0
-        sel_ondet &= gal_xy[1] < 4088 + 2*( gpad)
+        sel_ondet &= gal_xy[1] < tot_im_size
         gals = Table(gal_input[sel_ondet])
         gals['Xpos'] = gal_xy[0][sel_ondet]
         gals['Ypos'] = gal_xy[1][sel_ondet]
         gals.rename_column(gal_mag_col, 'mag')
         sel_mag = gals['mag'] < magmax
         gals = gals[sel_mag]
-        # fn_galout = os.path.join(output_dir,'gals_'+fn_root+ ".fits")
-        # gals.write(fn_galout,overwrite=True)
         ngal = len(gals)
         print('number of galaxies within detector padded region is '+str(ngal))
 
@@ -134,7 +113,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     phdu = fits.PrimaryHDU(data=full_model)
     phdu.header["INSTRUME"] = 'ROMAN   '
     phdu.header["FILTER"] = "f140w"
-    phdu.header["EXPTIME"] = 141
+    phdu.header["EXPTIME"] = grizli_conf["DIREXPTIME"] # direct exptime
     shp = full_model.shape
     phdu.header = iu.add_wcs(phdu,ra, dec, crpix2=shp[1]/2,crpix1=shp[0]/2,
                              crota2=pa,naxis1=shp[0],naxis2=shp[1])
@@ -158,7 +137,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     file.close()
 
     size = grizli_conf["size"][det]
-    thresh = 0.01
+    thresh = grizli_conf["thresh"]
     
     # Instantiate Grizli GrizliFLT
     roman = GrismFLT(grism_file=empty_grism,ref_file=empty_direct_fits_out_nopad, seg_file=None, pad=gpad) 
@@ -180,7 +159,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     window_x = np.linspace(0, np.pi, spectrum_overlap)
     front_y = (1 - np.cos(window_x)) / 2
     back_y = 1 - front_y
-    fov_pixels = pad-1
+    fov_pixels = grizli_conf["fov_pixels"]
 
     bins = np.linspace(minlam, maxlam, npsfs + 1)
 
@@ -289,6 +268,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
         if ngal > 0:
             print('adding galaxies to model')
             for i in tqdm(range(0,ngal)):
+                # This if statements allows galaxies without stars; else, photid is not set and an OSError is raised
                 if "photid" not in locals():
                     photid = 0
                 photid += 1
