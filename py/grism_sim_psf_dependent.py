@@ -28,7 +28,7 @@ if github_dir_env is None:
 
 def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='07242020',extra_grism_name='',
              github_dir=github_dir_env,gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,
-             mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/'):
+             mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/', check_psf=False, **psf_kwargs):
     #tel_ra,tel_dec correspond to the coordinates (in degrees) of the middle of the field (not the detector center)
     #pa is the position angle (in degrees), relative to lines of ra=constant; note, requires +60 on pa for wfi_sky_pointing
     #det_num is an integer corresponding to the detector number
@@ -36,27 +36,28 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     #gal_input is a table or array with columns...
     #output_dir is the directory for output
     #psf_cutout_size is the size in pixels used to determine the psf and then all of the image stamps that get added together
-    det = "SCA{:02}".format(det_num)
+    
+    # * Read config
     conf_file = os.path.join(github_dir, "grism_sim/data/grizli_config.yaml")
     with open(conf_file) as f:
         grizli_conf = yaml.safe_load(f)
     
-    gpad = grizli_conf["pad"]
-    fn_root = 'refimage_ra%s_dec%s_pa%s_det%s' % (tel_ra,tel_dec,pa,det)
-
-    empty_direct_fits_out_nopad = os.path.join(output_dir,fn_root+'_nopad.fits')
+    det = "SCA{:02}".format(det_num)
+    fov_pixels = grizli_conf["fov_pixels"] # size of star thumbnails
+    thresh = grizli_conf["thresh"] # threshhold pixel value to be dispersed
+    gpad = grizli_conf["pad"] # padding added in order to catch off-detector objects that disperse on-detector
+    tot_im_size = grizli_conf["detector_size"] + 2*gpad 
     
     #this ends up setting the background noise and defines the WCS
-        
     background = grizli_conf["grism_background"]
     EXPTIME = grizli_conf["GEXPTIME"] 
     NEXP = 1     
-    tot_im_size = grizli_conf["detector_size"] + 2*gpad 
 
+    # * Setup WCS
     siaf = pysiaf.Siaf("roman")
     wfi_siaf = siaf["WFI{:02}_FULL".format(det_num)]
     
-    # Use WFI_CEN for aiming; may switch to boresight aiming eventually
+    # Use WFI_CEN for aiming
     v2ref = siaf["WFI_CEN"].V2Ref
     v3ref = siaf["WFI_CEN"].V3Ref
 
@@ -65,6 +66,41 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     wfi_siaf.set_attitude_matrix(attmat)
     ra, dec = wfi_siaf.det_to_sky(2043, 2043) # I believe pysiaf uses 0-index for origin pixel; thus, center pix is 2043 not 2044
 
+    # * Save helper empty fits files
+    # Save an empty direct fits with appropriate header info and WCS
+    full_model = np.zeros((tot_im_size, tot_im_size))
+    full_ref = np.zeros((tot_im_size, tot_im_size))
+
+    fn_root = 'refimage_ra%s_dec%s_pa%s_det%s' % (tel_ra,tel_dec,pa,det)
+    empty_direct_fits_out_nopad = os.path.join(output_dir,fn_root+'_nopad.fits')
+
+    phdu = fits.PrimaryHDU(data=full_model)
+    phdu.header["INSTRUME"] = 'ROMAN   '
+    phdu.header["FILTER"] = "f140w"
+    phdu.header["EXPTIME"] = grizli_conf["DIREXPTIME"] # direct exptime
+    shp = full_model.shape
+    phdu.header = iu.add_wcs(phdu,ra, dec, crpix2=shp[1]/2,crpix1=shp[0]/2,
+                             crota2=pa,naxis1=shp[0],naxis2=shp[1])
+
+    err = np.random.poisson(10,full_model.shape)*0.001 #np.zeros(full_model.shape)
+    ihdu = fits.ImageHDU(data=full_model,name='SCI',header=phdu.header)
+    ehdu = fits.ImageHDU(data=err,name='ERR',header=phdu.header)
+    dhdu = fits.ImageHDU(data=np.zeros(full_model.shape),name='DQ',header=phdu.header)
+    hdul = fits.HDUList([phdu,ihdu,ehdu,dhdu])
+    hdul.writeto(empty_direct_fits_out_nopad, overwrite=True)
+
+    # Save empty grism fits
+    fn_root_grism = 'grism_ra%s_dec%s_pa%s_det%s' % (tel_ra,tel_dec,pa,det)
+    fn_root_grism += extra_grism_name 
+    empty_grism = os.path.join(output_dir, 'empty_'+fn_root_grism+'.fits')
+    h, _ = grizli.fake_image.roman_header(ra=ra, dec=dec, pa_aper=pa, naxis=(4088,4088))
+    grizli.fake_image.make_fake_image(h, output=empty_grism, exptime=EXPTIME, nexp=NEXP, background=background)
+    file = fits.open(empty_grism)
+    file[1].header["CONFFILE"] = os.path.join(github_dir, "grism_sim/data/Roman.det"+str(det_num)+"."+confver+".conf") #% (det_num,confver))
+    file.writeto(empty_grism, overwrite=True)
+    file.close()
+
+    # * Use WCS to Prepare object Catalogs
     star_xy_siaf = wfi_siaf.sky_to_sci(star_input["RA"], star_input["DEC"])
     star_xy = (star_xy_siaf[0] + gpad, star_xy_siaf[1] + gpad)
     
@@ -107,42 +143,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
         testprof = round_exp(x,y) #np.ones((4,4)) #just something that is not a pointsource, this should get much better
         testprof /= np.sum(testprof) #normalize the profile
 
-    # Save an empty direct fits with appropriate header info and WCS
-    full_model = np.zeros((tot_im_size, tot_im_size))
-    full_ref = np.zeros((tot_im_size, tot_im_size))
-    phdu = fits.PrimaryHDU(data=full_model)
-    phdu.header["INSTRUME"] = 'ROMAN   '
-    phdu.header["FILTER"] = "f140w"
-    phdu.header["EXPTIME"] = grizli_conf["DIREXPTIME"] # direct exptime
-    shp = full_model.shape
-    phdu.header = iu.add_wcs(phdu,ra, dec, crpix2=shp[1]/2,crpix1=shp[0]/2,
-                             crota2=pa,naxis1=shp[0],naxis2=shp[1])
-
-    err = np.random.poisson(10,full_model.shape)*0.001 #np.zeros(full_model.shape)
-    ihdu = fits.ImageHDU(data=full_model,name='SCI',header=phdu.header)
-    ehdu = fits.ImageHDU(data=err,name='ERR',header=phdu.header)
-    dhdu = fits.ImageHDU(data=np.zeros(full_model.shape),name='DQ',header=phdu.header)
-    hdul = fits.HDUList([phdu,ihdu,ehdu,dhdu])
-    hdul.writeto(empty_direct_fits_out_nopad, overwrite=True)
-
-    # Save empty grism fits
-    fn_root_grism = 'grism_ra%s_dec%s_pa%s_det%s' % (tel_ra,tel_dec,pa,det)
-    fn_root_grism += extra_grism_name 
-    empty_grism = os.path.join(output_dir, 'empty_'+fn_root_grism+'.fits')
-    h, _ = grizli.fake_image.roman_header(ra=ra, dec=dec, pa_aper=pa, naxis=(4088,4088))
-    grizli.fake_image.make_fake_image(h, output=empty_grism, exptime=EXPTIME, nexp=NEXP, background=background)
-    file = fits.open(empty_grism)
-    file[1].header["CONFFILE"] = os.path.join(github_dir, "grism_sim/data/Roman.det"+str(det_num)+"."+confver+".conf") #% (det_num,confver))
-    file.writeto(empty_grism, overwrite=True)
-    file.close()
-
-    size = grizli_conf["size"][det]
-    thresh = grizli_conf["thresh"]
-    
-    # Instantiate Grizli GrizliFLT
-    roman = GrismFLT(grism_file=empty_grism,ref_file=empty_direct_fits_out_nopad, seg_file=None, pad=gpad) 
-    roman.seg = np.zeros((tot_im_size,tot_im_size), dtype=np.float32) #this segmentation map should have the area of the padded grism image, but not have the padding added because of the PSF size
-    
+    # * Read bandpass file, and setup apodization
     df = Table.read(os.path.join(github_dir, 'grism_sim/data/wfirst_wfi_f158_001_syn.fits'), format='fits') #close to H-band
     bp = S.ArrayBandpass(df["WAVELENGTH"], df["THROUGHPUT"])
     
@@ -159,19 +160,34 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     window_x = np.linspace(0, np.pi, spectrum_overlap)
     front_y = (1 - np.cos(window_x)) / 2
     back_y = 1 - front_y
-    fov_pixels = grizli_conf["fov_pixels"]
 
     bins = np.linspace(minlam, maxlam, npsfs + 1)
 
-    # START sim here
+    # * Instantiate Grizli GrismFLT
+    size = grizli_conf["size"][det]
+    roman = GrismFLT(grism_file=empty_grism,ref_file=empty_direct_fits_out_nopad, seg_file=None, pad=gpad) 
+    roman.seg = np.zeros((tot_im_size,tot_im_size), dtype=np.float32) #this segmentation map should have the area of the padded grism image, but not have the padding added because of the PSF size
+
+    # * START sim here
     for ii, start_wave in enumerate(bins[:-1]):
         end_wave = bins[ii+1]
         print(f"starting at {start_wave}")
 
+        # * read in/check psf_grid
         psf_filename = f"wfi_grism0_fovp364_wave{start_wave:.0f}_{det}.fits".lower() # {instrument}_{filter}_{fovp}_wave{wavelength}_{det}.fits
-        psf_grid = pgu.load_psf_grid(psf_filename)
+        try:
+            psf_grid = pgu.load_psf_grid(psf_filename)
+        except OSError as e:
+            print(f"\nPSF Grid fits file not found. Check wavelength bins. If needed, use psf_grids to generate new grids. \n")
+            raise e
+        
+        if check_psf:
+                if psf_kwargs is not None:
+                    pgu.check_version(psf_filename, **psf_kwargs)
+                else:
+                    pgu.check_version(psf_filename)
 
-        # STAR SIM
+        # * STAR SIM
         print("adding stars to model")
         for i in tqdm(range(0,len(stars))):
             photid = i+1
@@ -265,6 +281,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
             except TypeError: # catch "cannot index bool" error
                 continue
 
+        # * GAL SIM
         if ngal > 0:
             print('adding galaxies to model')
             for i in tqdm(range(0,ngal)):
@@ -274,6 +291,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
                 photid += 1
                 row = gals[i]
 
+                # GAL DIRECT
                 # direct read of characteristics
                 xpos = row['Xpos']
                 ypos = row['Ypos']
@@ -302,6 +320,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
                 roman.direct.data["REF"][roman_lims[0]:roman_lims[1], roman_lims[2]:roman_lims[3]] = sp[sp_lims[0]:sp_lims[1],sp_lims[2]:sp_lims[3]]
                 roman.direct.data['REF'] *= roman.direct.ref_photflam
 
+                # GAL GRISM
                 if start_wave==minlam:
                     full_ref[roman_lims[0]:roman_lims[1], roman_lims[2]:roman_lims[3]] += sp[sp_lims[0]:sp_lims[1],sp_lims[2]:sp_lims[3]]
                 
@@ -365,11 +384,8 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
                     full_model += segment_of_dispersion[1] # catch "cannot index bool" error
                 except TypeError:
                     continue
-                
-    # There is no direct image or segmentation file to save. The only savable/non-intermediate product is the grism model. 
-    # We'd need to run a seperate direct image loop using the H Band filter and an effective PSF to get a realistic direct image.
 
-    #save grism model image + noise
+    # * save grism model image + noise
     roman.model = np.rot90(full_model, k=1)
     
     hdu_list = fits.open(empty_grism)
@@ -387,6 +403,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     hdu_list.close()
     print('wrote to '+out_fn)
 
+    # * save monochromatic direct image
     hdu_list = fits.open(empty_direct_fits_out_nopad)
     if gpad != 0:
         hdu_list.append(fits.ImageHDU(data=full_ref[gpad:-gpad, gpad:-gpad],name='IMAGE'))
