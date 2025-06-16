@@ -72,7 +72,7 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,c
     siaf = pysiaf.Siaf("roman")
     wfi_siaf = siaf["WFI{:02}_FULL".format(det_num)]
     
-    # Use WFI_CEN for aiming; may switch to boresight aiming eventually
+    # Use WFI_CEN for aiming
     v2ref = siaf["WFI_CEN"].V2Ref
     v3ref = siaf["WFI_CEN"].V3Ref
 
