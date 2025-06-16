@@ -26,7 +26,9 @@ if github_dir_env is None:
     print('github_dir environment variable has not been set, will cause problems if not explicitly set in function calss')
 
 
-def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='07242020',psf_cutout_size=365,extra_grism_name='',github_dir=github_dir_env,gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/'):
+def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='07242020',psf_cutout_size=365,extra_grism_name='',
+             github_dir=github_dir_env,gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,
+             mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/'):
     #tel_ra,tel_dec correspond to the coordinates (in degrees) of the middle of the field (not the detector center)
     #pa is the position angle (in degrees), relative to lines of ra=constant; note, requires +60 on pa for wfi_sky_pointing
     #det_num is an integer corresponding to the detector number
@@ -112,8 +114,8 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
         gals.rename_column(gal_mag_col, 'mag')
         sel_mag = gals['mag'] < magmax
         gals = gals[sel_mag]
-        fn_galout = os.path.join(output_dir,'gals_'+fn_root+ ".fits")
-        gals.write(fn_galout,overwrite=True)
+        # fn_galout = os.path.join(output_dir,'gals_'+fn_root+ ".fits")
+        # gals.write(fn_galout,overwrite=True)
         ngal = len(gals)
         print('number of galaxies within detector padded region is '+str(ngal))
 
