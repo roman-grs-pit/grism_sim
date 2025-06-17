@@ -11,7 +11,7 @@ outdir = os.getenv("SCRATCH")
 def dosim(args, **kwargs):
     print(kwargs)
     mk_grism(args[0],args[1],args[2],args[3],stars,gals,outdir,
-             confver="03192025_rotAonly.conf",check_psf=True,
+             confver="03192025_rotAonly",check_psf=True,
              **kwargs)
 
 ra = 10
