@@ -1,4 +1,5 @@
 from tqdm import tqdm
+import time
 import h5py
 import numpy as np
 from scipy import signal
@@ -37,6 +38,8 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     #output_dir is the directory for output
     #psf_cutout_size is the size in pixels used to determine the psf and then all of the image stamps that get added together
     
+    timings = {}
+    timings["checkpoint_0"] = time.time()
     # * Read config
     conf_file = os.path.join(github_dir, "grism_sim/data/grizli_config.yaml")
     with open(conf_file) as f:
@@ -53,6 +56,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     EXPTIME = grizli_conf["GEXPTIME"] 
     NEXP = 1     
 
+    timings["checkpoint_1"] = time.time()
     # * Setup WCS
     siaf = pysiaf.Siaf("roman")
     wfi_siaf = siaf["WFI{:02}_FULL".format(det_num)]
@@ -66,6 +70,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     wfi_siaf.set_attitude_matrix(attmat)
     ra, dec = wfi_siaf.det_to_sky(2043, 2043) # I believe pysiaf uses 0-index for origin pixel; thus, center pix is 2043 not 2044
 
+    timings["checkpoint_2"] = time.time()
     # * Save helper empty fits files
     # Save an empty direct fits with appropriate header info and WCS
     full_model = np.zeros((tot_im_size, tot_im_size))
@@ -100,6 +105,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     file.writeto(empty_grism, overwrite=True)
     file.close()
 
+    timings["checkpoint_3"] = time.time()
     # * Use WCS to Prepare object Catalogs
     star_xy_siaf = wfi_siaf.sky_to_sci(star_input["RA"], star_input["DEC"])
     star_xy = (star_xy_siaf[0] + gpad, star_xy_siaf[1] + gpad)
@@ -143,6 +149,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
         testprof = round_exp(x,y) #np.ones((4,4)) #just something that is not a pointsource, this should get much better
         testprof /= np.sum(testprof) #normalize the profile
 
+    timings["checkpoint_4"] = time.time()
     # * Read bandpass file, and setup apodization
     df = Table.read(os.path.join(github_dir, 'grism_sim/data/wfirst_wfi_f158_001_syn.fits'), format='fits') #close to H-band
     bp = S.ArrayBandpass(df["WAVELENGTH"], df["THROUGHPUT"])
@@ -163,16 +170,30 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
 
     bins = np.linspace(minlam, maxlam, npsfs + 1)
 
+    timings["checkpoint_5"] = time.time()
     # * Instantiate Grizli GrismFLT
     size = grizli_conf["size"][det]
     roman = GrismFLT(grism_file=empty_grism,ref_file=empty_direct_fits_out_nopad, seg_file=None, pad=gpad) 
     roman.seg = np.zeros((tot_im_size,tot_im_size), dtype=np.float32) #this segmentation map should have the area of the padded grism image, but not have the padding added because of the PSF size
+
+    timings["checkpoint_6"] = time.time()
+    timings["PSF_grid_load"] = 0
+    timings["star_PSF_eval"] = 0
+    timings["star_placement"] = 0
+    timings["star_spec_prep"] = 0
+    timings["star_grism_sim"] = 0
+    timings["gal_PSF_eval"] = 0
+    timings["gal_PSF_conv"] = 0
+    timings["gal_placement"] = 0
+    timings["gal_spec_prep"] = 0
+    timings["gal_grism_sim"] = 0
 
     # * START sim here
     for ii, start_wave in enumerate(bins[:-1]):
         end_wave = bins[ii+1]
         print(f"starting at {start_wave}")
 
+        start = time.time()
         # * read in/check psf_grid
         psf_filename = f"wfi_grism0_fovp364_wave{start_wave:.0f}_{det}.fits".lower() # {instrument}_{filter}_{fovp}_wave{wavelength}_{det}.fits
         try:
@@ -186,6 +207,9 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
                     pgu.check_version(psf_filename, **psf_kwargs)
                 else:
                     pgu.check_version(psf_filename)
+                
+        end = time.time()
+        timings["PSF_grid_load"] += (end - start)
 
         # * STAR SIM
         print("adding stars to model")
@@ -204,8 +228,13 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
             xtrue = xpos - gpad
             ytrue = ypos - gpad
 
+            start = time.time()
             sp = iu.star_postage_grid(psf_grid,mag,xtrue,ytrue,fov_pixels=fov_pixels) # PSF from grid
 
+            end = time.time()
+            timings["star_PSF_eval"] += (end - start)
+
+            start = time.time()
             # sp limits are needed to keep only what fits on the detector (plus pad)
             sp_lims = [max(0,-(yp-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(yp+fov_pixels-tot_im_size)),
                         max(0,-(xp-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(xp+fov_pixels-tot_im_size))]
@@ -229,6 +258,9 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
             roman.direct.data["REF"] = np.rot90(roman.direct.data["REF"], k=3)
             roman.seg = np.rot90(roman.seg, k=3)
 
+            end = time.time()
+            timings["star_placement"] += (end - start)
+
             # STAR GRISM
             row = stars[i]
             mag = row["magnitude"]
@@ -238,6 +270,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
             wave = temp[0]
             flux = temp[1]
 
+            start = time.time()
             # renormalization has to occur before picking out the spectrum segment to avoid a DisjointError
             star_spec = S.ArraySpectrum(wave=wave, flux=flux, waveunits="angstroms", fluxunits="flam")
             spec = star_spec.renorm(mag, "abmag", bp)
@@ -270,16 +303,23 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
             if start_wave != minlam:
                 flux[:spectrum_overlap] *= front_y
             if end_wave != maxlam:
-                flux[-spectrum_overlap:] *= back_y            
+                flux[-spectrum_overlap:] *= back_y    
+
+            end = time.time()
+            timings["star_spec_prep"] += (end - start)
             
+            start = time.time()
             segment_of_dispersion = roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=False, store=False,
                                     is_cgs=True, spectrum_1d=[wave, flux])
             
             # compute_model_orders returns a boolean IF the dispersion would not land on the detector
             try:
                 full_model += segment_of_dispersion[1]
-            except TypeError: # catch "cannot index bool" error
+            except TypeError: # catch "cannot index bool" error (star would not disperse onto detector)
                 continue
+
+            end = time.time()
+            timings["star_grism_sim"] += (end - start)
 
         # * GAL SIM
         if ngal > 0:
@@ -303,12 +343,22 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
                 xtrue = xpos - gpad
                 ytrue = ypos - gpad
 
+                start = time.time()
                 # make direct thumbnail and convolve with psf
                 imflux = iu.mag2flux(mag)#imflux = row['flux']
                 gal_psf = iu.gal_postage_grid(psf_grid,xtrue,ytrue,fov_pixels=fov_pixels)
+                
+                end = time.time()
+                timings["gal_PSF_eval"] += (end - start)
+
+                start = time.time()
                 conv_prof = signal.convolve2d(gal_psf,testprof,mode='same') 
                 sp = imflux*conv_prof
 
+                end = time.time()
+                timings["gal_PSF_conv"] += (end - start)
+
+                start = time.time()
                 # sp limits are needed to keep only what fits on the detector (plus pad)
                 sp_lims = [max(0,-(yp-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(yp+fov_pixels-tot_im_size)),
                             max(0,-(xp-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(xp+fov_pixels-tot_im_size))]
@@ -330,7 +380,11 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
                 # Rotations after placement on detector
                 roman.direct.data["REF"] = np.rot90(roman.direct.data["REF"], k=3)
                 roman.seg = np.rot90(roman.seg, k=3)
+
+                end = time.time()
+                timings["gal_placement"] += (end - start)
                 
+                start = time.time()
                 #get sed and convert to spectrum
                 sim_fn = os.path.join(mockdir, 'galacticus_FOV_EVERY100_sub_'+str(row['SIM'])+'.hdf5')
                 sim = h5py.File(sim_fn, 'r')
@@ -376,15 +430,23 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
                 if end_wave != maxlam:
                     flux[-spectrum_overlap:] *= back_y    
 
+                end = time.time()
+                timings["gal_spec_prep"] += (end - start)
+
+                start = time.time()
                 segment_of_dispersion = roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=False, store=False,
                                         is_cgs=True, spectrum_1d=[wave, flux])
                 
                 # compute_model_orders returns a boolean IF the dispersion would not land on the detector
                 try:
-                    full_model += segment_of_dispersion[1] # catch "cannot index bool" error
+                    full_model += segment_of_dispersion[1] # catch "cannot index bool" error (gal would not disperse onto detector)
                 except TypeError:
                     continue
 
+                end = time.time()
+                timings["gal_grism_sim"] += (end - start)
+
+    timings["checkpoint_7"] = time.time()
     # * save grism model image + noise
     roman.model = np.rot90(full_model, k=1)
     
@@ -403,6 +465,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     hdu_list.close()
     print('wrote to '+out_fn)
 
+    timings["checkpoint_8"] = time.time()
     # * save monochromatic direct image
     hdu_list = fits.open(empty_direct_fits_out_nopad)
     if gpad != 0:
@@ -414,5 +477,12 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     hdu_list.writeto(out_fn, overwrite=True)
     hdu_list.close()
     print('wrote to '+out_fn)
+
+    # * print timings
+    for key in timings.keys():
+        if "checkpoint" not in key:
+            print(key, timings[key])
+    for ii in range(0, 8):
+        print(f"Split {ii}-{ii+1}: ", (timings[f"checkpoint_{ii+1}"] - timings[f"checkpoint_{ii}"]))
 
     return roman.model
