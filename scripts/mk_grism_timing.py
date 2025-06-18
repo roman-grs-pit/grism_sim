@@ -22,7 +22,7 @@ det_num = 1
 args = [ra,dec,pa,det_num,stars,gals,outdir]
 
 start = time.time()
-dosim(args, dogal='y')
+dosim(args, dogal='y', conv_gal=False)
 end = time.time()
 
 print(f"dosim took: {end - start}")

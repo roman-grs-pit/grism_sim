@@ -29,7 +29,8 @@ if github_dir_env is None:
 
 def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='07242020',extra_grism_name='',
              github_dir=github_dir_env,gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,
-             mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/', check_psf=False, **psf_kwargs):
+             mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/', check_psf=False, 
+             conv_gal=True, **psf_kwargs):
     #tel_ra,tel_dec correspond to the coordinates (in degrees) of the middle of the field (not the detector center)
     #pa is the position angle (in degrees), relative to lines of ra=constant; note, requires +60 on pa for wfi_sky_pointing
     #det_num is an integer corresponding to the detector number
@@ -149,6 +150,9 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
         testprof = round_exp(x,y) #np.ones((4,4)) #just something that is not a pointsource, this should get much better
         testprof /= np.sum(testprof) #normalize the profile
 
+        if not conv_gal:
+            testprof = np.pad(testprof, 698, mode="constant", constant_values=0)
+
     timings["checkpoint_4"] = time.time()
     # * Read bandpass file, and setup apodization
     df = Table.read(os.path.join(github_dir, 'grism_sim/data/wfirst_wfi_f158_001_syn.fits'), format='fits') #close to H-band
@@ -182,8 +186,11 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     timings["star_placement"] = 0
     timings["star_spec_prep"] = 0
     timings["star_grism_sim"] = 0
-    timings["gal_PSF_eval"] = 0
-    timings["gal_PSF_conv"] = 0
+    if conv_gal:
+        timings["gal_PSF_eval"] = 0
+        timings["gal_PSF_conv"] = 0
+    else:
+        timings["gal_flux_step"] = 0
     timings["gal_placement"] = 0
     timings["gal_spec_prep"] = 0
     timings["gal_grism_sim"] = 0
@@ -344,19 +351,24 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
                 ytrue = ypos - gpad
 
                 start = time.time()
-                # make direct thumbnail and convolve with psf
+                # convolve direct thumbnail with psf
                 imflux = iu.mag2flux(mag)#imflux = row['flux']
-                gal_psf = iu.gal_postage_grid(psf_grid,xtrue,ytrue,fov_pixels=fov_pixels)
-                
-                end = time.time()
-                timings["gal_PSF_eval"] += (end - start)
+                if conv_gal:
+                    gal_psf = iu.gal_postage_grid(psf_grid,xtrue,ytrue,fov_pixels=fov_pixels)
+                    
+                    end = time.time()
+                    timings["gal_PSF_eval"] += (end - start)
 
-                start = time.time()
-                conv_prof = signal.convolve2d(gal_psf,testprof,mode='same') 
-                sp = imflux*conv_prof
+                    start = time.time()
+                    conv_prof = signal.convolve2d(gal_psf,testprof,mode='same') 
+                    sp = imflux*conv_prof
 
-                end = time.time()
-                timings["gal_PSF_conv"] += (end - start)
+                    end = time.time()
+                    timings["gal_PSF_conv"] += (end - start)
+                else:
+                    sp = imflux * testprof
+                    end = time.time()
+                    timings["gal_flux_step"] += (end - start)
 
                 start = time.time()
                 # sp limits are needed to keep only what fits on the detector (plus pad)
