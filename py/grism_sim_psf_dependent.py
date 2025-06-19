@@ -186,14 +186,15 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     timings["star_placement"] = 0
     timings["star_spec_prep"] = 0
     timings["star_grism_sim"] = 0
-    if conv_gal:
-        timings["gal_PSF_eval"] = 0
-        timings["gal_PSF_conv"] = 0
-    else:
-        timings["gal_flux_step"] = 0
-    timings["gal_placement"] = 0
-    timings["gal_spec_prep"] = 0
-    timings["gal_grism_sim"] = 0
+    if dogal:
+        if conv_gal:
+            timings["gal_PSF_eval"] = 0
+            timings["gal_PSF_conv"] = 0
+        else:
+            timings["gal_flux_step"] = 0
+        timings["gal_placement"] = 0
+        timings["gal_spec_prep"] = 0
+        timings["gal_grism_sim"] = 0
 
     # * START sim here
     for ii, start_wave in enumerate(bins[:-1]):
@@ -274,10 +275,10 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
             temp_ind = int(temp_inds[i])
             star_type = templates[temp_ind].strip('\n')
             temp = np.loadtxt(os.path.join(tempdir, star_type)).transpose()
-            wave = temp[0]
-            flux = temp[1]
 
             start = time.time()
+            wave = np.arange(minlam, maxlam, 1)
+            flux = np.interp(wave, temp[0], temp[1]) #interp avoids indexing errors by normalizing sed shape/length
             # renormalization has to occur before picking out the spectrum segment to avoid a DisjointError
             star_spec = S.ArraySpectrum(wave=wave, flux=flux, waveunits="angstroms", fluxunits="flam")
             spec = star_spec.renorm(mag, "abmag", bp)
