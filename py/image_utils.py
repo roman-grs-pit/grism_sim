@@ -72,6 +72,7 @@ def add_Roman_header(file_name,fout_name=None,roman_base_dir='',det='1'):
 
 def fake_header_wcs(crval1, crval2, crpix2=2044,crpix1=2044, cdelt1=0.11, cdelt2=0.11,
                 crota2=0.0,naxis1=4088,naxis2=4088):
+    # NOTE: Pysiaf is used for WCS now. These functions should only be used for fits header info
     #make empty hdu header and add wcs 
     
     hdu = fits.PrimaryHDU()
@@ -82,6 +83,8 @@ def fake_header_wcs(crval1, crval2, crpix2=2044,crpix1=2044, cdelt1=0.11, cdelt2
 def add_wcs(hdu,crval1, crval2, crpix2=2044,crpix1=2044, cdelt1=0.11, cdelt2=0.11,
                 crota2=0.0,naxis1=4088,naxis2=4088):
 
+    # NOTE: Pysiaf is used for WCS now. These functions should only be used for fits header info
+    
     #add wcs to existing header
     #maintain consistency with https://github.com/roman-grs-pit/observing-program/blob/main/py/footprintutils.py, at some point make both use same function
     # crota2 - degree

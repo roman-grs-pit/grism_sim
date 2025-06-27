@@ -2,12 +2,15 @@ detector_size: 4088
 minlam: 10000 # Angstroms
 maxlam: 20000 # Angstroms
 grism_background: 0.57 # counts/sec
+GEXPTIME: 301 # sec; Grism exptime
+DIREXPTIME: 141 # sec; Direct exptime
+thresh: 0.01
 
 pad: 1000 # Pad chosen to be >one full trace dx (make sure also includes size of object)
 # The pad does not seem to have a large impact on compute times.
 # It only needs to be larger than one full trace in x. It can be defined seperately in the x and y.
 
-fov_pixels: 182 # Star/PSF size
+fov_pixels: 364 # Star/PSF size
 npsfs: 20 # Number of PSFs
 spectrum_overlap: 10 # Extent of overlap between PSFs in Angstroms (roll-on/off)
 

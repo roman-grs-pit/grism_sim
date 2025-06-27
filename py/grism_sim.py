@@ -4,17 +4,18 @@ import numpy as np
 from scipy import signal
 from astropy.io import fits
 from astropy.table import Table
-from astropy.wcs import WCS
-from astropy import units as u
-from astropy.coordinates import SkyCoord
+# from astropy.wcs import WCS
+# from astropy import units as u
+# from astropy.coordinates import SkyCoord
 import os, sys
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 # Spectra tools
 import pysynphot as S
 
 from grizli.model import GrismFLT
 import grizli.fake_image
 
+import pysiaf
 import image_utils as iu
 
 import yaml
@@ -52,21 +53,36 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,c
     EXPTIME = 301 
     NEXP = 1     
 
-    sys.path.append(github_dir+'/observing-program/py')
-    import roman_coords_transform as ctrans
-    code_data_dir = github_dir+'/observing-program/data/'
-    rctrans = ctrans.RomanCoordsTransform(file_path=code_data_dir)
-    dfoot = rctrans.wfi_sky_pointing(tel_ra, tel_dec, pa+60, ds9=False)
-    ra = dfoot[0][int(det_num)]['ra_cen']
-    dec = dfoot[0][int(det_num)]['dec_cen']
+    # sys.path.append(github_dir+'/observing-program/py')
+    # import roman_coords_transform as ctrans
+    # code_data_dir = github_dir+'/observing-program/data/'
+    # rctrans = ctrans.RomanCoordsTransform(file_path=code_data_dir)
+    # dfoot = rctrans.wfi_sky_pointing(tel_ra, tel_dec, pa+60, ds9=False)
+    # ra = dfoot[0][int(det_num)]['ra_cen']
+    # dec = dfoot[0][int(det_num)]['dec_cen']
 
-    tot_im_size = 4088+2*(gpad+pad)
+    # tot_im_size = 4088+2*(gpad+pad)
 
-    im_head = iu.fake_header_wcs(ra, dec, crpix2=tot_im_size/2,crpix1=tot_im_size/2, cdelt1=0.11, cdelt2=0.11,crota2=pa,naxis1=tot_im_size,naxis2=tot_im_size)
-    im_wcs = WCS(im_head)
+    # im_head = iu.fake_header_wcs(ra, dec, crpix2=tot_im_size/2,crpix1=tot_im_size/2, cdelt1=0.11, cdelt2=0.11,crota2=pa,naxis1=tot_im_size,naxis2=tot_im_size)
+    # im_wcs = WCS(im_head)
 
-    star_coords = SkyCoord(ra=star_input['RA']*u.degree,dec=star_input['DEC']*u.degree, frame='icrs')
-    star_xy = im_wcs.world_to_pixel(star_coords)
+    # star_coords = SkyCoord(ra=star_input['RA']*u.degree,dec=star_input['DEC']*u.degree, frame='icrs')
+    # star_xy = im_wcs.world_to_pixel(star_coords)
+
+    siaf = pysiaf.Siaf("roman")
+    wfi_siaf = siaf["WFI{:02}_FULL".format(det_num)]
+    
+    # Use WFI_CEN for aiming
+    v2ref = siaf["WFI_CEN"].V2Ref
+    v3ref = siaf["WFI_CEN"].V3Ref
+
+    attmat = pysiaf.utils.rotations.attitude_matrix(v2ref, v3ref, tel_ra, tel_dec, pa) # pysiaf pa is 60 more than image_utils pa (i.e. siaf_pa = iu_pa + 60)
+
+    wfi_siaf.set_attitude_matrix(attmat)
+    ra, dec = wfi_siaf.det_to_sky(2043, 2043) # I believe pysiaf uses 0-index for origin pixel; thus, center pixel is 2043 not 2044
+
+    star_xy_siaf = wfi_siaf.sky_to_sci(star_input["RA"], star_input["DEC"])
+    star_xy = (star_xy_siaf[0] + gpad, star_xy_siaf[1] + gpad)
     
     sel_ondet = star_xy[0] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
     sel_ondet &= star_xy[0] < 4088 + 2*( gpad)
@@ -82,8 +98,11 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,c
     ngal = 0
     fid_psf = iu.get_psf(fov_pixels=pad-1, det=det)
     if dogal == 'y':
-        gal_coords = SkyCoord(ra=(gal_input['RA'])*u.degree,dec=gal_input['DEC']*u.degree, frame='icrs')
-        gal_xy = im_wcs.world_to_pixel(gal_coords)
+        # gal_coords = SkyCoord(ra=(gal_input['RA'])*u.degree,dec=gal_input['DEC']*u.degree, frame='icrs')
+        # gal_xy = im_wcs.world_to_pixel(gal_coords)
+
+        gal_xy_siaf = wfi_siaf.sky_to_sci(gal_input["RA"], gal_input["DEC"])
+        gal_xy = (gal_xy_siaf[0] + gpad, gal_xy_siaf[1] + gpad)
     
         sel_ondet = gal_xy[0] > 0
         sel_ondet &= gal_xy[0] < 4088 + 2*( gpad)
@@ -130,9 +149,9 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,c
         #else:
         #    sp = iu.star_postage(mag,xpos,ypos,xoff,yoff,fov_pixels=pad-1, det=det)
         fov_pixels = pad-1
-        full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
+        full_image[yp+pad-fov_pixels:yp+pad+fov_pixels,xp+pad-fov_pixels:xp+pad+fov_pixels] += sp
         selseg = sp > thresh
-        full_seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels][selseg] = i+1#seg 
+        full_seg[yp+pad-fov_pixels:yp+pad+fov_pixels,xp+pad-fov_pixels:xp+pad+fov_pixels][selseg] = i+1#seg 
 
     if ngal > 0:
         print('adding galaxies to reference image')
@@ -150,7 +169,7 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,c
             yoff = 0#ypos-yp
             sp = imflux*conv_prof_fixed
             fov_pixels = pad-1
-            full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
+            full_image[yp+pad-fov_pixels:yp+pad+fov_pixels,xp+pad-fov_pixels:xp+pad+fov_pixels] += sp
 
     # rotates roman.direct.data["REF"] and seg map for stars; galaxy seg map rotated later
     full_image = np.rot90(full_image, k=3)
@@ -169,8 +188,8 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,c
     phdu.header["FILTER"] = "f140w"
     phdu.header["EXPTIME"] = 141
     shp = cut_image.shape
-    phdu.header = iu.add_wcs(phdu,ra, dec, crpix2=shp[1]/2,crpix1=shp[0]/2, cdelt1=0.11, cdelt2=0.11,
-                crota2=pa,naxis1=shp[0],naxis2=shp[1])
+    phdu.header = iu.add_wcs(phdu,ra, dec, crpix2=shp[1]/2,crpix1=shp[0]/2,
+                             crota2=pa,naxis1=shp[0],naxis2=shp[1])
 
     err = np.random.poisson(10,cut_image.shape)*0.001 #np.zeros(cut_image.shape)
     ihdu = fits.ImageHDU(data=cut_image,name='SCI',header=phdu.header)
@@ -266,14 +285,14 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,c
         yoff = 0#ypos-yp
         sp = imflux*conv_prof
         fov_pixels = pad-1
-        full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
+        full_image[yp+pad-fov_pixels:yp+pad+fov_pixels,xp+pad-fov_pixels:xp+pad+fov_pixels] += sp
         masked_im = full_image[pad:-pad,pad:-pad]
         #copying from process_ref_file in grizli
         #roman.direct.data['REF'] = np.asarray(masked_im,dtype=np.float32)
         #roman.direct.data['REF'] *= roman.direct.ref_photflam
         
         selseg = sp > thresh
-        full_seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels][selseg] = photid
+        full_seg[yp+pad-fov_pixels:yp+pad+fov_pixels,xp+pad-fov_pixels:xp+pad+fov_pixels][selseg] = photid
         masked_seg = full_seg[pad:-pad,pad:-pad]
         roman.seg = np.rot90(np.asarray(masked_seg,dtype=np.float32), k=3)
         # galaxy seg map rotation
