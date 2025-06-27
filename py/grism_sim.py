@@ -149,9 +149,9 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,c
         #else:
         #    sp = iu.star_postage(mag,xpos,ypos,xoff,yoff,fov_pixels=pad-1, det=det)
         fov_pixels = pad-1
-        full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
+        full_image[yp+pad-fov_pixels:yp+pad+fov_pixels,xp+pad-fov_pixels:xp+pad+fov_pixels] += sp
         selseg = sp > thresh
-        full_seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels][selseg] = i+1#seg 
+        full_seg[yp+pad-fov_pixels:yp+pad+fov_pixels,xp+pad-fov_pixels:xp+pad+fov_pixels][selseg] = i+1#seg 
 
     if ngal > 0:
         print('adding galaxies to reference image')
@@ -169,7 +169,7 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,c
             yoff = 0#ypos-yp
             sp = imflux*conv_prof_fixed
             fov_pixels = pad-1
-            full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
+            full_image[yp+pad-fov_pixels:yp+pad+fov_pixels,xp+pad-fov_pixels:xp+pad+fov_pixels] += sp
 
     # rotates roman.direct.data["REF"] and seg map for stars; galaxy seg map rotated later
     full_image = np.rot90(full_image, k=3)
