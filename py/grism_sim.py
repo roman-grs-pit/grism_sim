@@ -285,14 +285,14 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,c
         yoff = 0#ypos-yp
         sp = imflux*conv_prof
         fov_pixels = pad-1
-        full_image[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels] += sp
+        full_image[yp+pad-fov_pixels:yp+pad+fov_pixels,xp+pad-fov_pixels:xp+pad+fov_pixels] += sp
         masked_im = full_image[pad:-pad,pad:-pad]
         #copying from process_ref_file in grizli
         #roman.direct.data['REF'] = np.asarray(masked_im,dtype=np.float32)
         #roman.direct.data['REF'] *= roman.direct.ref_photflam
         
         selseg = sp > thresh
-        full_seg[xp+pad-fov_pixels:xp+pad+fov_pixels,yp+pad-fov_pixels:yp+pad+fov_pixels][selseg] = photid
+        full_seg[yp+pad-fov_pixels:yp+pad+fov_pixels,xp+pad-fov_pixels:xp+pad+fov_pixels][selseg] = photid
         masked_seg = full_seg[pad:-pad,pad:-pad]
         roman.seg = np.rot90(np.asarray(masked_seg,dtype=np.float32), k=3)
         # galaxy seg map rotation
