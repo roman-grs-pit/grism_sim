@@ -26,11 +26,14 @@ github_dir_env=os.getenv('github_dir')
 if github_dir_env is None:
     print('github_dir environment variable has not been set, will cause problems if not explicitly set in function calss')
 
+psf_grid_data_write=os.getenv("psf_grid_data_write")
+if psf_grid_data_write is None:
+    print("psf_grid_data_write variable has not been set. This will cause problems if psf_grid fits do not already exist.")
 
 def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='07242020',extra_grism_name='',
              github_dir=github_dir_env,gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,
              mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/', check_psf=False, 
-             conv_gal=True, **psf_kwargs):
+             conv_gal=True, npsfs=None, **psf_kwargs):
     #tel_ra,tel_dec correspond to the coordinates (in degrees) of the middle of the field (not the detector center)
     #pa is the position angle (in degrees), relative to lines of ra=constant; note, requires +60 on pa for wfi_sky_pointing
     #det_num is an integer corresponding to the detector number
@@ -74,24 +77,24 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     timings["checkpoint_2"] = time.time()
     # * Save helper empty fits files
     # Save an empty direct fits with appropriate header info and WCS
-    full_model = np.zeros((tot_im_size, tot_im_size))
+    full_model_noiseless = np.zeros((tot_im_size, tot_im_size))
     full_ref = np.zeros((tot_im_size, tot_im_size))
 
     fn_root = 'refimage_ra%s_dec%s_pa%s_det%s' % (tel_ra,tel_dec,pa,det)
     empty_direct_fits_out_nopad = os.path.join(output_dir,fn_root+'_nopad.fits')
 
-    phdu = fits.PrimaryHDU(data=full_model)
+    phdu = fits.PrimaryHDU(data=full_model_noiseless)
     phdu.header["INSTRUME"] = 'ROMAN   '
     phdu.header["FILTER"] = "f140w"
     phdu.header["EXPTIME"] = grizli_conf["DIREXPTIME"] # direct exptime
-    shp = full_model.shape
+    shp = full_model_noiseless.shape
     phdu.header = iu.add_wcs(phdu,ra, dec, crpix2=shp[1]/2,crpix1=shp[0]/2,
                              crota2=pa,naxis1=shp[0],naxis2=shp[1])
 
-    err = np.random.poisson(10,full_model.shape)*0.001 #np.zeros(full_model.shape)
-    ihdu = fits.ImageHDU(data=full_model,name='SCI',header=phdu.header)
+    err = np.random.poisson(10,full_model_noiseless.shape)*0.001 #np.zeros(full_model_noiseless.shape)
+    ihdu = fits.ImageHDU(data=full_model_noiseless,name='SCI',header=phdu.header)
     ehdu = fits.ImageHDU(data=err,name='ERR',header=phdu.header)
-    dhdu = fits.ImageHDU(data=np.zeros(full_model.shape),name='DQ',header=phdu.header)
+    dhdu = fits.ImageHDU(data=np.zeros(full_model_noiseless.shape),name='DQ',header=phdu.header)
     hdul = fits.HDUList([phdu,ihdu,ehdu,dhdu])
     hdul.writeto(empty_direct_fits_out_nopad, overwrite=True)
 
@@ -166,7 +169,8 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     temp_inds = stars['star_template_index'] - 58*(stars['star_template_index']//58)
 
     # Setup roll-on/roll-off shape
-    npsfs = grizli_conf["npsfs"]
+    if npsfs is None:
+        npsfs = grizli_conf["npsfs"]
     spectrum_overlap = grizli_conf["spectrum_overlap"]
     window_x = np.linspace(0, np.pi, spectrum_overlap)
     front_y = (1 - np.cos(window_x)) / 2
@@ -203,12 +207,12 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
 
         start = time.time()
         # * read in/check psf_grid
-        psf_filename = f"wfi_grism0_fovp364_wave{start_wave:.0f}_{det}.fits".lower() # {instrument}_{filter}_{fovp}_wave{wavelength}_{det}.fits
+        psf_filename = f"wfi_grism0_fovp{fov_pixels}_wave{start_wave:.0f}_{det}.fits".lower() # {instrument}_{filter}_{fovp}_wave{wavelength}_{det}.fits
         try:
             psf_grid = pgu.load_psf_grid(psf_filename)
         except OSError as e:
-            print(f"\nPSF Grid fits file not found. Check wavelength bins. If needed, use psf_grids to generate new grids. \n")
-            raise e
+            pgu.save_one_grid(det_num, start_wave, psf_grid_data_write, fov_pixels=fov_pixels, **psf_kwargs)
+            psf_grid = pgu.load_psf_grid(psf_filename)
         
         if check_psf:
                 if psf_kwargs is not None:
@@ -277,7 +281,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
             temp = np.loadtxt(os.path.join(tempdir, star_type)).transpose()
 
             start = time.time()
-            wave = np.arange(minlam, maxlam, 1)
+            wave = np.arange(minlam, maxlam, 5)
             flux = np.interp(wave, temp[0], temp[1]) #interp avoids indexing errors by normalizing sed shape/length
             # renormalization has to occur before picking out the spectrum segment to avoid a DisjointError
             star_spec = S.ArraySpectrum(wave=wave, flux=flux, waveunits="angstroms", fluxunits="flam")
@@ -322,7 +326,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
             
             # compute_model_orders returns a boolean IF the dispersion would not land on the detector
             try:
-                full_model += segment_of_dispersion[1]
+                full_model_noiseless += segment_of_dispersion[1]
             except TypeError: # catch "cannot index bool" error (star would not disperse onto detector)
                 continue
 
@@ -452,7 +456,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
                 
                 # compute_model_orders returns a boolean IF the dispersion would not land on the detector
                 try:
-                    full_model += segment_of_dispersion[1] # catch "cannot index bool" error (gal would not disperse onto detector)
+                    full_model_noiseless += segment_of_dispersion[1] # catch "cannot index bool" error (gal would not disperse onto detector)
                 except TypeError:
                     continue
 
@@ -461,17 +465,32 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
 
     timings["checkpoint_7"] = time.time()
     # * save grism model image + noise
-    roman.model = np.rot90(full_model, k=1)
+    # Noise
+    rng = np.random.default_rng()
+    print("###########", len(full_model_noiseless < 0))
+    sel = full_model_noiseless < 0
+    full_model_noiseless[sel] = 0
+    full_model_poisson = rng.poisson(full_model_noiseless * EXPTIME) / EXPTIME
     
+    bg_noise = background + roman.grism.data["SCI"]
+    full_model_final = full_model_poisson + bg_noise
+
+    # Final model rotation
+    full_model_final = np.rot90(full_model_final, k=1)
+    full_model_noiseless = np.rot90(full_model_noiseless, k=1)
+
+    # Save model
     hdu_list = fits.open(empty_grism)
     if gpad != 0:
-        hdu_list.append(fits.ImageHDU(data=roman.model[gpad:-gpad, gpad:-gpad],name='MODEL'))
+        hdu_list.append(fits.ImageHDU(data=full_model_noiseless[gpad:-gpad, gpad:-gpad],name='MODEL'))
         #hdu_list.append(fits.ImageHDU(data=roman.grism.data['SCI'][gpad:-gpad, gpad:-gpad],name='ERR'))
-        hdu_list['ERR'].data = roman.grism.data['SCI'][gpad:-gpad, gpad:-gpad]
+        hdu_list['ERR'].data = bg_noise[gpad:-gpad, gpad:-gpad] + np.sqrt(full_model_noiseless[gpad:-gpad, gpad:-gpad])
+        hdu_list["SCI"].data = full_model_final[gpad:-gpad, gpad:-gpad]
     else:
-        hdu_list.append(fits.ImageHDU(data=roman.model,name='MODEL'))
+        hdu_list.append(fits.ImageHDU(data=full_model_noiseless,name='MODEL'))
         #hdu_list.append(fits.ImageHDU(data=roman.grism.data['SCI']),name='ERR')
-        hdu_list['ERR'].data = roman.grism.data['SCI']
+        hdu_list['ERR'].data = bg_noise + np.sqrt(full_model_noiseless)
+        hdu_list["SCI"].data = full_model_final
     
     out_fn = os.path.join(output_dir, fn_root_grism+'.fits')
     hdu_list.writeto(out_fn, overwrite=True)
