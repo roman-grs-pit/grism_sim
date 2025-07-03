@@ -16,7 +16,7 @@ def dosim(args, **kwargs):
     print(kwargs)
     mk_grism(args[0],args[1],args[2],args[3],args[4],args[5],args[6],
              confver="03192025_rotAonly",check_psf=True, dogal='n',
-             conv_gal=False, npsfs=args[7],
+             conv_gal=False, npsfs=args[7], extra_grism_name=f"_npsfs{args[7]}",
              **kwargs)
 
 ra = 10
