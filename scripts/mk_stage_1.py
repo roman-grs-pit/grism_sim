@@ -16,7 +16,7 @@ def dosim(args, **kwargs):
     print(kwargs)
     mk_grism(args[0],args[1],args[2],args[3],args[4],args[5],args[6],
              confver="03192025_rotAonly",check_psf=True, dogal='n',
-             conv_gal=False, npsfs=args[7], extra_grism_name=f"_npsfs{args[7]}",
+             conv_gal=False, npsfs=args[7], extra_grism_name=f"_npsfs{args[7]}", extra_ref_name=f"_npsfs{args[7]}",
              **kwargs)
 
 ra = 10
@@ -30,6 +30,3 @@ for npsfs in [10, 20, 50]:
         args.append([ra,dec,pa,det_num,stars,gals,outdir,npsfs])
 
 print("will simulate"+str(len(args))+" grism images")
-
-with Pool(processes=54) as pool:
-    res = pool.map(dosim, args)
