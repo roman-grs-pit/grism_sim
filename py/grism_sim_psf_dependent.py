@@ -30,7 +30,7 @@ psf_grid_data_write=os.getenv("psf_grid_data_write")
 if psf_grid_data_write is None:
     print("psf_grid_data_write variable has not been set. This will cause problems if psf_grid fits do not already exist.")
 
-def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='07242020',extra_grism_name='',
+def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='07242020',extra_grism_name='',extra_ref_name='',
              github_dir=github_dir_env,gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,
              mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/', check_psf=False, 
              conv_gal=True, npsfs=None, use_tqdm=False, **psf_kwargs):
@@ -44,6 +44,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     
     timings = {}
     timings["checkpoint_0"] = time.time()
+    print("checkpoint_0")
     # * Read config
     conf_file = os.path.join(github_dir, "grism_sim/data/grizli_config.yaml")
     with open(conf_file) as f:
@@ -62,6 +63,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     NEXP = 1     
 
     timings["checkpoint_1"] = time.time()
+    print("checkpoint_1")
     # * Setup WCS
     siaf = pysiaf.Siaf("roman")
     wfi_siaf = siaf["WFI{:02}_FULL".format(det_num)]
@@ -76,12 +78,14 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     ra, dec = wfi_siaf.det_to_sky(2043, 2043) # I believe pysiaf uses 0-index for origin pixel; thus, center pix is 2043 not 2044
 
     timings["checkpoint_2"] = time.time()
+    print("checkpoint_2")
     # * Save helper empty fits files
     # Save an empty direct fits with appropriate header info and WCS
     full_model_noiseless = np.zeros((tot_im_size, tot_im_size))
     full_ref = np.zeros((tot_im_size, tot_im_size))
 
     fn_root = 'refimage_ra%s_dec%s_pa%s_det%s' % (tel_ra,tel_dec,pa,det)
+    fn_root += extra_ref_name
     empty_direct_fits_out_nopad = os.path.join(output_dir,fn_root+'_nopad.fits')
 
     phdu = fits.PrimaryHDU(data=full_model_noiseless)
@@ -111,6 +115,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     file.close()
 
     timings["checkpoint_3"] = time.time()
+    print("checkpoint_3")
     # * Use WCS to Prepare object Catalogs
     star_xy_siaf = wfi_siaf.sky_to_sci(star_input["RA"], star_input["DEC"])
     star_xy = (star_xy_siaf[0] + gpad, star_xy_siaf[1] + gpad)
@@ -158,6 +163,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
             testprof = np.pad(testprof, 698, mode="constant", constant_values=0)
 
     timings["checkpoint_4"] = time.time()
+    print("checkpoint_4")
     # * Read bandpass file, and setup apodization
     df = Table.read(os.path.join(github_dir, 'grism_sim/data/wfirst_wfi_f158_001_syn.fits'), format='fits') #close to H-band
     bp = S.ArrayBandpass(df["WAVELENGTH"], df["THROUGHPUT"])
@@ -180,6 +186,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     bins = np.linspace(minlam, maxlam, npsfs + 1)
 
     timings["checkpoint_5"] = time.time()
+    print("checkpoint_5")
     # * Instantiate Grizli GrismFLT
     attempt = 0
     max_attempt = 3
@@ -187,6 +194,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
         try:
             roman = GrismFLT(grism_file=empty_grism,ref_file=empty_direct_fits_out_nopad, seg_file=None, pad=gpad) 
             roman.seg = np.zeros((tot_im_size,tot_im_size), dtype=np.float32) #this segmentation map should have the area of the padded grism image, but not have the padding added because of the PSF size
+            break
         except FileNotFoundError as e:
             attempt += 1
             if attempt < max_attempt:
@@ -196,6 +204,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
                 print(f"FileNotFoundError when instantiating Grizli. Maximum retries exceeded ({max_attempt})")
                 raise e
 
+    print("checkpoint_6")
     timings["checkpoint_6"] = time.time()
     timings["PSF_grid_load"] = 0
     timings["star_PSF_eval"] = 0
@@ -484,6 +493,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
                 timings["gal_grism_sim"] += (end - start)
 
     timings["checkpoint_7"] = time.time()
+    print("checkpoint_7")
     # * save grism model image + noise
     true_noiseless = np.copy(full_model_noiseless)
     # Noise
@@ -519,6 +529,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     print('wrote to '+out_fn)
 
     timings["checkpoint_8"] = time.time()
+    print("checkpoint_8")
     # * save monochromatic direct image
     hdu_list = fits.open(empty_direct_fits_out_nopad)
     if gpad != 0:
