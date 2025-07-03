@@ -52,6 +52,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     det = "SCA{:02}".format(det_num)
     fov_pixels = grizli_conf["fov_pixels"] # size of star thumbnails
     thresh = grizli_conf["thresh"] # threshhold pixel value to be dispersed
+    size = grizli_conf["size"][det] + 364
     gpad = grizli_conf["pad"] # padding added in order to catch off-detector objects that disperse on-detector
     tot_im_size = grizli_conf["detector_size"] + 2*gpad 
     
@@ -180,9 +181,20 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
 
     timings["checkpoint_5"] = time.time()
     # * Instantiate Grizli GrismFLT
-    size = grizli_conf["size"][det] + 364
-    roman = GrismFLT(grism_file=empty_grism,ref_file=empty_direct_fits_out_nopad, seg_file=None, pad=gpad) 
-    roman.seg = np.zeros((tot_im_size,tot_im_size), dtype=np.float32) #this segmentation map should have the area of the padded grism image, but not have the padding added because of the PSF size
+    attempt = 0
+    max_attempt = 3
+    while attempt < max_attempt:
+        try:
+            roman = GrismFLT(grism_file=empty_grism,ref_file=empty_direct_fits_out_nopad, seg_file=None, pad=gpad) 
+            roman.seg = np.zeros((tot_im_size,tot_im_size), dtype=np.float32) #this segmentation map should have the area of the padded grism image, but not have the padding added because of the PSF size
+        except FileNotFoundError as e:
+            attempt += 1
+            if attempt < max_attempt:
+                print(f"FileNotFoundError when instantiating Grizli. Waiting 5 seconds and retrying ({attempt}/{max_attempt})")
+                time.sleep(5)
+            else:
+                print(f"FileNotFoundError when instantiating Grizli. Maximum retries exceeded ({max_attempt})")
+                raise e
 
     timings["checkpoint_6"] = time.time()
     timings["PSF_grid_load"] = 0
