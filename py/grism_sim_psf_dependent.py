@@ -8,7 +8,7 @@ from astropy.table import Table#, join
 # from astropy.wcs import WCS
 # from astropy import units as u
 # from astropy.coordinates import SkyCoord
-import os, sys
+import os
 # import matplotlib.pyplot as plt
 # Spectra tools
 import pysynphot as S
@@ -33,7 +33,7 @@ if psf_grid_data_write is None:
 def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='07242020',extra_grism_name='',
              github_dir=github_dir_env,gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,
              mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/', check_psf=False, 
-             conv_gal=True, npsfs=None, **psf_kwargs):
+             conv_gal=True, npsfs=None, use_tqdm=False, **psf_kwargs):
     #tel_ra,tel_dec correspond to the coordinates (in degrees) of the middle of the field (not the detector center)
     #pa is the position angle (in degrees), relative to lines of ra=constant; note, requires +60 on pa for wfi_sky_pointing
     #det_num is an integer corresponding to the detector number
@@ -180,7 +180,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
 
     timings["checkpoint_5"] = time.time()
     # * Instantiate Grizli GrismFLT
-    size = grizli_conf["size"][det]
+    size = grizli_conf["size"][det] + 364
     roman = GrismFLT(grism_file=empty_grism,ref_file=empty_direct_fits_out_nopad, seg_file=None, pad=gpad) 
     roman.seg = np.zeros((tot_im_size,tot_im_size), dtype=np.float32) #this segmentation map should have the area of the padded grism image, but not have the padding added because of the PSF size
 
@@ -225,14 +225,18 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
 
         # * STAR SIM
         print("adding stars to model")
-        for i in tqdm(range(0,len(stars))):
-            photid = i+1
+        if use_tqdm:
+            iter = tqdm(range(0,len(stars)))
+        else:
+            iter = range(0,len(stars))
+        for jj in iter:
+            photid = jj+1
 
             # STAR DIRECT
             # direct read of characteristics
-            xpos = stars[i]['Xpos']
-            ypos = stars[i]['Ypos']
-            mag = stars[i]['magnitude']
+            xpos = stars[jj]['Xpos']
+            ypos = stars[jj]['Ypos']
+            mag = stars[jj]['magnitude']
 
             # cleaned up characteristisc
             xp = int(xpos) 
@@ -274,9 +278,9 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
             timings["star_placement"] += (end - start)
 
             # STAR GRISM
-            row = stars[i]
+            row = stars[jj]
             mag = row["magnitude"]
-            temp_ind = int(temp_inds[i])
+            temp_ind = int(temp_inds[jj])
             star_type = templates[temp_ind].strip('\n')
             temp = np.loadtxt(os.path.join(tempdir, star_type)).transpose()
 
@@ -336,12 +340,16 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
         # * GAL SIM
         if ngal > 0:
             print('adding galaxies to model')
-            for i in tqdm(range(0,ngal)):
+            if use_tqdm:
+                iter = tqdm(range(0,ngal))
+            else:
+                iter = range(0,ngal)
+            for jj in iter:
                 # This if statements allows galaxies without stars; else, photid is not set and an OSError is raised
                 if "photid" not in locals():
                     photid = 0
                 photid += 1
-                row = gals[i]
+                row = gals[jj]
 
                 # GAL DIRECT
                 # direct read of characteristics
@@ -465,9 +473,9 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
 
     timings["checkpoint_7"] = time.time()
     # * save grism model image + noise
+    true_noiseless = np.copy(full_model_noiseless)
     # Noise
     rng = np.random.default_rng()
-    print("###########", len(full_model_noiseless < 0))
     sel = full_model_noiseless < 0
     full_model_noiseless[sel] = 0
     full_model_poisson = rng.poisson(full_model_noiseless * EXPTIME) / EXPTIME
@@ -478,16 +486,17 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     # Final model rotation
     full_model_final = np.rot90(full_model_final, k=1)
     full_model_noiseless = np.rot90(full_model_noiseless, k=1)
+    true_noiseless = np.rot90(true_noiseless, k=1)
 
     # Save model
     hdu_list = fits.open(empty_grism)
     if gpad != 0:
-        hdu_list.append(fits.ImageHDU(data=full_model_noiseless[gpad:-gpad, gpad:-gpad],name='MODEL'))
+        hdu_list.append(fits.ImageHDU(data=true_noiseless[gpad:-gpad, gpad:-gpad], name='MODEL'))
         #hdu_list.append(fits.ImageHDU(data=roman.grism.data['SCI'][gpad:-gpad, gpad:-gpad],name='ERR'))
         hdu_list['ERR'].data = bg_noise[gpad:-gpad, gpad:-gpad] + np.sqrt(full_model_noiseless[gpad:-gpad, gpad:-gpad])
         hdu_list["SCI"].data = full_model_final[gpad:-gpad, gpad:-gpad]
     else:
-        hdu_list.append(fits.ImageHDU(data=full_model_noiseless,name='MODEL'))
+        hdu_list.append(fits.ImageHDU(data=true_noiseless, name='MODEL'))
         #hdu_list.append(fits.ImageHDU(data=roman.grism.data['SCI']),name='ERR')
         hdu_list['ERR'].data = bg_noise + np.sqrt(full_model_noiseless)
         hdu_list["SCI"].data = full_model_final
