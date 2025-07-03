@@ -3,7 +3,7 @@ from grism_sim_psf_dependent import mk_grism
 import os
 from multiprocessing import Pool
 
-outdir = os.getenv("SCRATCH")
+outdir = "/global/cfs/cdirs/m4943/grismsim/stage_1/"
 
 stars = Table.read('/global/cfs/cdirs/m4943/grismsim/stars/sim_star_cat_galacticus.ecsv')
 # gals = Table.read('/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/Euclid_Roman_4deg2_radec.fits')
