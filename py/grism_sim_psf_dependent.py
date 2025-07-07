@@ -33,7 +33,7 @@ if psf_grid_data_write is None:
 def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='07242020',extra_grism_name='',extra_ref_name='',
              github_dir=github_dir_env,gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,
              mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/', check_psf=False, 
-             conv_gal=True, npsfs=None, use_tqdm=False, **psf_kwargs):
+             conv_gal=True, npsfs=None, use_tqdm=False, seed=3, **psf_kwargs):
     #tel_ra,tel_dec correspond to the coordinates (in degrees) of the middle of the field (not the detector center)
     #pa is the position angle (in degrees), relative to lines of ra=constant; note, requires +60 on pa for wfi_sky_pointing
     #det_num is an integer corresponding to the detector number
@@ -497,7 +497,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     # * save grism model image + noise
     true_noiseless = np.copy(full_model_noiseless)
     # Noise
-    rng = np.random.default_rng()
+    rng = np.random.default_rng(seed=seed)
     sel = full_model_noiseless < 0
     full_model_noiseless[sel] = 0
     full_model_poisson = rng.poisson(full_model_noiseless * EXPTIME) / EXPTIME
