@@ -31,5 +31,5 @@ for npsfs in [10, 20, 50]:
 
 print("will simulate"+str(len(args))+" grism images")
 
-with Pool(nproccesses=54) as pool:
+with Pool(processes=54) as pool:
     res = pool.map(dosim, args)
