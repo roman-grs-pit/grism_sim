@@ -30,7 +30,7 @@ psf_grid_data_write=os.getenv("psf_grid_data_write")
 if psf_grid_data_write is None:
     print("psf_grid_data_write variable has not been set. This will cause problems if psf_grid fits do not already exist.")
 
-def try_wait_loop(func, max_attempts=3, wait=5, *args, **kwargs):
+def try_wait_loop(func, *args, max_attempts=3, wait=5, **kwargs):
     attempt = 0
     while attempt < max_attempts:
         try:
