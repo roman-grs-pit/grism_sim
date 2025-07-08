@@ -30,6 +30,23 @@ psf_grid_data_write=os.getenv("psf_grid_data_write")
 if psf_grid_data_write is None:
     print("psf_grid_data_write variable has not been set. This will cause problems if psf_grid fits do not already exist.")
 
+def try_wait_loop(func, max_attempts=3, wait=5, *args, **kwargs):
+    attempt = 0
+    while attempt < max_attempts:
+        try:
+            res = func(*args, **kwargs)
+            break
+        except Exception as e:
+            attempt += 1 
+            if attempt < max_attempts:
+                print(f"{func.__name__} failed. Waiting {wait} and retrying: {attempt}/{max_attempts}")
+                time.sleep(wait)
+            else:
+                print(f"{func.__name__} failed. Maximum retries exceeded: {max_attempts}")
+                raise e
+    
+    return res
+
 def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='07242020',extra_grism_name='',extra_ref_name='',
              github_dir=github_dir_env,gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,
              mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/', check_psf=False, 
@@ -109,7 +126,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     empty_grism = os.path.join(output_dir, 'empty_'+fn_root_grism+'.fits')
     h, _ = grizli.fake_image.roman_header(ra=ra, dec=dec, pa_aper=pa, naxis=(4088,4088))
     grizli.fake_image.make_fake_image(h, output=empty_grism, exptime=EXPTIME, nexp=NEXP, background=background)
-    file = fits.open(empty_grism)
+    file = try_wait_loop(fits.open, empty_grism)
     file[1].header["CONFFILE"] = os.path.join(github_dir, "grism_sim/data/Roman.det"+str(det_num)+"."+confver+".conf") #% (det_num,confver))
     file.writeto(empty_grism, overwrite=True)
     file.close()
@@ -172,8 +189,9 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     maxlam = grizli_conf["maxlam"]
     
     tempdir = os.path.join(github_dir, 'star_fields/data/SEDtemplates/')
-    templates = open(os.path.join(github_dir, 'star_fields/data/SEDtemplates/input_spectral_STARS.lis')).readlines()
     temp_inds = stars['star_template_index'] - 58*(stars['star_template_index']//58)
+    with open(os.path.join(github_dir, 'star_fields/data/SEDtemplates/input_spectral_STARS.lis')) as f:
+        templates = f.readlines()
 
     # Setup roll-on/roll-off shape
     if npsfs is None:
@@ -188,21 +206,8 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     timings["checkpoint_5"] = time.time()
     print("checkpoint_5")
     # * Instantiate Grizli GrismFLT
-    attempt = 0
-    max_attempt = 3
-    while attempt < max_attempt:
-        try:
-            roman = GrismFLT(grism_file=empty_grism,ref_file=empty_direct_fits_out_nopad, seg_file=None, pad=gpad) 
-            roman.seg = np.zeros((tot_im_size,tot_im_size), dtype=np.float32) #this segmentation map should have the area of the padded grism image, but not have the padding added because of the PSF size
-            break
-        except FileNotFoundError as e:
-            attempt += 1
-            if attempt < max_attempt:
-                print(f"FileNotFoundError when instantiating Grizli. Waiting 5 seconds and retrying ({attempt}/{max_attempt})")
-                time.sleep(5)
-            else:
-                print(f"FileNotFoundError when instantiating Grizli. Maximum retries exceeded ({max_attempt})")
-                raise e
+    roman = try_wait_loop(GrismFLT, grism_file=empty_grism,ref_file=empty_direct_fits_out_nopad, seg_file=None, pad=gpad)
+    roman.seg = np.zeros((tot_im_size,tot_im_size), dtype=np.float32) #this segmentation map should have the area of the padded grism image, but not have the padding added because of the PSF size
 
     print("checkpoint_6")
     timings["checkpoint_6"] = time.time()
@@ -232,8 +237,9 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
         try:
             psf_grid = pgu.load_psf_grid(psf_filename)
         except OSError as e:
+            print("creating new PSF Grid")
             pgu.save_one_grid(det_num, start_wave, psf_grid_data_write, fov_pixels=fov_pixels, **psf_kwargs)
-            psf_grid = pgu.load_psf_grid(psf_filename)
+            psf_grid = try_wait_loop(pgu.load_psf_grid, psf_filename)
         
         if check_psf:
                 if psf_kwargs is not None:
@@ -247,10 +253,10 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
         # * STAR SIM
         print("adding stars to model")
         if use_tqdm:
-            iter = tqdm(range(0,len(stars)))
+            star_iter = tqdm(range(0,len(stars)))
         else:
-            iter = range(0,len(stars))
-        for jj in iter:
+            star_iter = range(0,len(stars))
+        for jj in star_iter:
             photid = jj+1
 
             # STAR DIRECT
@@ -362,10 +368,10 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
         if ngal > 0:
             print('adding galaxies to model')
             if use_tqdm:
-                iter = tqdm(range(0,ngal))
+                gal_iter = tqdm(range(0,ngal))
             else:
-                iter = range(0,ngal)
-            for jj in iter:
+                gal_iter = range(0,ngal)
+            for jj in gal_iter:
                 # This if statements allows galaxies without stars; else, photid is not set and an OSError is raised
                 if "photid" not in locals():
                     photid = 0
@@ -536,7 +542,6 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
         hdu_list.append(fits.ImageHDU(data=full_ref[gpad:-gpad, gpad:-gpad],name='IMAGE'))
     else:
         hdu_list.append(fits.ImageHDU(data=full_ref,name='IMAGE'))
-    
     out_fn = os.path.join(output_dir, fn_root+'.fits')
     hdu_list.writeto(out_fn, overwrite=True)
     hdu_list.close()
