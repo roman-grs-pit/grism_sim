@@ -59,6 +59,9 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,confv
     #output_dir is the directory for output
     #psf_cutout_size is the size in pixels used to determine the psf and then all of the image stamps that get added together
     
+    if gal_input is None:
+        dogal = 'n'
+
     timings = {}
     timings["checkpoint_0"] = time.time()
     print("checkpoint_0")
