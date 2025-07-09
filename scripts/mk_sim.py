@@ -11,12 +11,11 @@ with open(conf_file) as f:
     sim_config = yaml.safe_load(f)
 
 # assert block
-mock_vars = ["mockdir", "stars", "galaxies"]
-for var in mock_vars:
+for var in ["stars", "galaxies"]:
     msg = f"{var} not found in sim_config. If not simulating stars or galaxies, set to null."
     assert var in sim_config, msg
 
-for var in ("tel_ra", "tel_dec"):
+for var in ["tel_ra", "tel_dec"]:
     assert var in sim_config, f"{var} not found in sim_config"
     if isinstance(sim_config[var], dict):
         for dvar in ["start", "step", "num"]:
@@ -42,11 +41,11 @@ if len(sim_config["names_of_sims"]) > 1:
         assert "extra_grism_name" in sim_config[sim_num], msg
 
 if sim_config["stars"] is not None:
-    stars = Table.read(os.path.join(sim_config["mockdir"], sim_config["stars"]))
+    stars = Table.read(sim_config["stars"])
 else:
     stars = None
 if sim_config["galaxies"] is not None:
-    galaxies = Table.read(os.path.join(sim_config["mockdir"], sim_config["galaxies"]))
+    galaxies = Table.read(sim_config["galaxies"])
 else:
     galaxies = None
 
