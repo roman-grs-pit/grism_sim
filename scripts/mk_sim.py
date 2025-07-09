@@ -147,7 +147,5 @@ def dosim(d, **kwargs):
              output_dir = outdir,
              **kwargs)
 
-# with Pool(processes=100) as pool:
-#     res = pool.map(dosim, all_sims)
-
-print(all_sims)
+with Pool(processes=108) as pool:
+    res = pool.map(dosim, all_sims)
