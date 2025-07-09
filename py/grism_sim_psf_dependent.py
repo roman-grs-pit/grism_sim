@@ -47,12 +47,12 @@ def try_wait_loop(func, *args, max_attempts=3, wait=5, **kwargs):
     
     return res
 
-def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='07242020',extra_grism_name='',extra_ref_name='',
+def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,confver='07242020',extra_grism_name='',extra_ref_name='',
              github_dir=github_dir_env,gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,
              mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/', check_psf=False, 
-             conv_gal=True, npsfs=None, use_tqdm=False, seed=3, **psf_kwargs):
+             conv_gal=True, use_tqdm=False, seed=3, **kwargs):
     #tel_ra,tel_dec correspond to the coordinates (in degrees) of the middle of the field (not the detector center)
-    #pa is the position angle (in degrees), relative to lines of ra=constant; note, requires +60 on pa for wfi_sky_pointing
+    #tel_pa is the position angle (in degrees), relative to lines of ra=constant; note, requires +60 on tel_pa for wfi_sky_pointing
     #det_num is an integer corresponding to the detector number
     #star_input is a table or array with columns 'RA', 'DEC', 'magnitude', 'star_template_index'
     #gal_input is a table or array with columns...
@@ -66,6 +66,10 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     conf_file = os.path.join(github_dir, "grism_sim/data/grizli_config.yaml")
     with open(conf_file) as f:
         grizli_conf = yaml.safe_load(f)
+    
+    for arg in kwargs.keys():
+        if arg in grizli_conf:
+            grizli_conf[arg] = kwargs.pop(arg)
     
     det = "SCA{:02}".format(det_num)
     fov_pixels = grizli_conf["fov_pixels"] # size of star thumbnails
@@ -89,7 +93,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     v2ref = siaf["WFI_CEN"].V2Ref
     v3ref = siaf["WFI_CEN"].V3Ref
 
-    attmat = pysiaf.utils.rotations.attitude_matrix(v2ref, v3ref, tel_ra, tel_dec, pa) # pysiaf pa is 60 more than image_utils pa (i.e. siaf_pa = iu_pa + 60)
+    attmat = pysiaf.utils.rotations.attitude_matrix(v2ref, v3ref, tel_ra, tel_dec, tel_pa) # pysiaf tel_pa is 60 more than image_utils tel_pa (i.e. siaf_pa = iu_pa + 60)
 
     wfi_siaf.set_attitude_matrix(attmat)
     ra, dec = wfi_siaf.det_to_sky(2043, 2043) # I believe pysiaf uses 0-index for origin pixel; thus, center pix is 2043 not 2044
@@ -101,7 +105,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     full_model_noiseless = np.zeros((tot_im_size, tot_im_size))
     full_ref = np.zeros((tot_im_size, tot_im_size))
 
-    fn_root = 'refimage_ra%s_dec%s_pa%s_det%s' % (tel_ra,tel_dec,pa,det)
+    fn_root = 'refimage_ra%s_dec%s_pa%s_det%s' % (tel_ra,tel_dec,tel_pa,det)
     fn_root += extra_ref_name
     empty_direct_fits_out_nopad = os.path.join(output_dir,fn_root+'_nopad.fits')
 
@@ -111,7 +115,7 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     phdu.header["EXPTIME"] = grizli_conf["DIREXPTIME"] # direct exptime
     shp = full_model_noiseless.shape
     phdu.header = iu.add_wcs(phdu,ra, dec, crpix2=shp[1]/2,crpix1=shp[0]/2,
-                             crota2=pa,naxis1=shp[0],naxis2=shp[1])
+                             crota2=tel_pa,naxis1=shp[0],naxis2=shp[1])
 
     err = np.random.poisson(10,full_model_noiseless.shape)*0.001 #np.zeros(full_model_noiseless.shape)
     ihdu = fits.ImageHDU(data=full_model_noiseless,name='SCI',header=phdu.header)
@@ -121,10 +125,10 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     hdul.writeto(empty_direct_fits_out_nopad, overwrite=True)
 
     # Save empty grism fits
-    fn_root_grism = 'grism_ra%s_dec%s_pa%s_det%s' % (tel_ra,tel_dec,pa,det)
+    fn_root_grism = 'grism_ra%s_dec%s_pa%s_det%s' % (tel_ra,tel_dec,tel_pa,det)
     fn_root_grism += extra_grism_name 
     empty_grism = os.path.join(output_dir, 'empty_'+fn_root_grism+'.fits')
-    h, _ = grizli.fake_image.roman_header(ra=ra, dec=dec, pa_aper=pa, naxis=(4088,4088))
+    h, _ = grizli.fake_image.roman_header(ra=ra, dec=dec, pa_aper=tel_pa, naxis=(4088,4088))
     grizli.fake_image.make_fake_image(h, output=empty_grism, exptime=EXPTIME, nexp=NEXP, background=background)
     file = try_wait_loop(fits.open, empty_grism)
     file[1].header["CONFFILE"] = os.path.join(github_dir, "grism_sim/data/Roman.det"+str(det_num)+"."+confver+".conf") #% (det_num,confver))
@@ -187,6 +191,8 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
     
     minlam = grizli_conf["minlam"]
     maxlam = grizli_conf["maxlam"]
+    spectrum_overlap = grizli_conf["spectrum_overlap"]
+    npsfs = grizli_conf["npsfs"]
     
     tempdir = os.path.join(github_dir, 'star_fields/data/SEDtemplates/')
     temp_inds = stars['star_template_index'] - 58*(stars['star_template_index']//58)
@@ -194,9 +200,6 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
         templates = f.readlines()
 
     # Setup roll-on/roll-off shape
-    if npsfs is None:
-        npsfs = grizli_conf["npsfs"]
-    spectrum_overlap = grizli_conf["spectrum_overlap"]
     window_x = np.linspace(0, np.pi, spectrum_overlap)
     front_y = (1 - np.cos(window_x)) / 2
     back_y = 1 - front_y
@@ -238,12 +241,12 @@ def mk_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='
             psf_grid = pgu.load_psf_grid(psf_filename)
         except OSError as e:
             print("creating new PSF Grid")
-            pgu.save_one_grid(det_num, start_wave, psf_grid_data_write, fov_pixels=fov_pixels, **psf_kwargs)
+            pgu.save_one_grid(det_num, start_wave, psf_grid_data_write, fov_pixels=fov_pixels, **kwargs)
             psf_grid = try_wait_loop(pgu.load_psf_grid, psf_filename)
         
         if check_psf:
-                if psf_kwargs is not None:
-                    pgu.check_version(psf_filename, **psf_kwargs)
+                if kwargs is not None:
+                    pgu.check_version(psf_filename, **kwargs)
                 else:
                     pgu.check_version(psf_filename)
                 
