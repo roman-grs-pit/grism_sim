@@ -154,8 +154,8 @@ def dosim(d, **kwargs):
              output_dir = outdir,
              **kwargs)
 
-# with Pool(processes=108) as pool:
-#     res = pool.map(dosim, all_sims)
+with Pool(processes=108) as pool:
+    res = pool.map(dosim, all_sims)
 
 if sim_config["combine_sims"]:
     grouped = ciu.group_grism_files(outdir, all_sims)
