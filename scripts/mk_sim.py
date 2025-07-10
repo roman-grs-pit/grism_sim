@@ -1,5 +1,6 @@
 from grism_sim_psf_dependent import mk_grism
 from multiprocessing import Pool
+import combine_img_utils as ciu
 from astropy.table import Table
 import numpy as np
 import os, sys
@@ -25,6 +26,8 @@ for var in ["tel_ra", "tel_dec"]:
         msg = f"{var} must be float, int, or dict containing start, step, and num keys"
         assert isinstance(sim_config[var], (float, int)), msg
     
+assert "seed" in sim_config, "Random seed not found in sim_config. Please define rng seed in sim_config.yaml"
+
 msg = "tel_pa must be dictionary with start value and rolls list"
 assert isinstance(sim_config["tel_pa"], dict), msg
 assert "rolls" in sim_config["tel_pa"], msg
@@ -40,6 +43,7 @@ if len(sim_config["names_of_sims"]) > 1:
         assert "extra_ref_name" in sim_config[sim_num], msg
         assert "extra_grism_name" in sim_config[sim_num], msg
 
+# Read catalogs
 if sim_config["stars"] is not None:
     stars = Table.read(sim_config["stars"])
 else:
@@ -90,7 +94,7 @@ for ra in tel_ra:
                             "pa": pa})
 
 sims = []
-
+seed = sim_config["seed"]
 for sim_name in sim_config["names_of_sims"]:
     sim = sim_config[sim_name].copy()
     catalogs = {"star_input": None,
@@ -125,7 +129,8 @@ for sim_name in sim_config["names_of_sims"]:
         det_nums = [ii for ii in scas]
 
     for det_num in det_nums:
-        sims.append({"det_num": det_num,
+        sims.append({"seed": seed,
+                     "det_num": det_num,
                      **catalogs,
                      **sim
                      })
@@ -145,8 +150,13 @@ def dosim(d, **kwargs):
              det_num = d["det_num"],
              star_input = d["star_input"],
              gal_input = d["gal_input"],
+             seed=d["seed"],
              output_dir = outdir,
              **kwargs)
 
-with Pool(processes=108) as pool:
-    res = pool.map(dosim, all_sims)
+# with Pool(processes=108) as pool:
+#     res = pool.map(dosim, all_sims)
+
+if sim_config["combine_sims"]:
+    grouped = ciu.group_grism_files(outdir, all_sims)
+    ciu.combined_sims(outdir, grouped, seed)
