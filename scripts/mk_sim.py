@@ -93,8 +93,8 @@ sims = []
 
 for sim_name in sim_config["names_of_sims"]:
     sim = sim_config[sim_name].copy()
-    d = {"star_input": None,
-         "gal_input": None}
+    catalogs = {"star_input": None,
+                "gal_input": None}
 
     if stars is not None:
         sel = np.ones(len(stars), dtype=bool)
@@ -104,7 +104,7 @@ for sim_name in sim_config["names_of_sims"]:
                 sel &= stars["magnitude"] <= cutoffs["brighter_than"]
             if "fainter_than" in cutoffs:
                 sel &= stars["magnitude"] >= cutoffs["fainter_than"]
-        d["star_input"] = stars[sel]
+        catalogs["star_input"] = stars[sel]
 
     if galaxies is not None:
         sel = np.ones(len(galaxies), dtype=bool)
@@ -114,7 +114,7 @@ for sim_name in sim_config["names_of_sims"]:
                 sel &= galaxies["magnitude"] <= cutoffs["brighter_than"]
             if "fainter_than" in cutoffs:
                 sel &= galaxies["magnitude"] >= cutoffs["fainter_than"]
-        d["gal_input"] = galaxies[sel]
+        catalogs["gal_input"] = galaxies[sel]
 
     scas = sim.pop("SCAs")
     if scas=="all":
@@ -126,6 +126,7 @@ for sim_name in sim_config["names_of_sims"]:
 
     for det_num in det_nums:
         sims.append({"det_num": det_num,
+                     **catalogs,
                      **sim
                      })
 
