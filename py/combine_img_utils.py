@@ -38,12 +38,11 @@ def combined_sims(outdir, grouped, seed):
                 sel = noiseless_model < 0
                 noiseless_model[sel] = 0
                 sci += rng.poisson(noiseless_model * EXPTIME) / EXPTIME
-                err = np.sqrt((noiseless_model_0 + noiseless_model + bg) * EXPTIME) / EXPTIME
                 noiseless_model_gather += noiseless_model
             
         hdul["SCI"] = sci
-        hdul["ERR"] = err
+        hdul["ERR"] = np.sqrt((noiseless_model_gather + bg) * EXPTIME) / EXPTIME
         hdul["MODEL"] = noiseless_model_gather
-        hdul.writeto(os.path.join(outdir, base + ".fits"))
+        hdul.writeto(os.path.join(outdir, base + ".fits"), overwrite=True)
     
     return 0
