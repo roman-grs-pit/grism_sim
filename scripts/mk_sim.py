@@ -154,7 +154,7 @@ def dosim(d, **kwargs):
              output_dir = outdir,
              **kwargs)
 
-with Pool(processes=108) as pool:
+with Pool(processes=36) as pool:
     res = pool.map(dosim, all_sims)
 
 if sim_config["combine_sims"]:
