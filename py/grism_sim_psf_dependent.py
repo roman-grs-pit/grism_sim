@@ -70,7 +70,8 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,confv
     with open(conf_file) as f:
         grizli_conf = yaml.safe_load(f)
     
-    for arg in kwargs.keys():
+    kwkeys = list(kwargs.keys())
+    for arg in kwkeys:
         if arg in grizli_conf:
             grizli_conf[arg] = kwargs.pop(arg)
     
