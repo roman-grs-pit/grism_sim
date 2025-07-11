@@ -147,7 +147,7 @@ def dosim(d):
     mk_grism(output_dir = outdir,
              **d)
 
-with Pool(processes=36) as pool:
+with Pool(processes=80) as pool:
     res = pool.map(dosim, all_sims)
 
 if sim_config["combine_sims"]:
