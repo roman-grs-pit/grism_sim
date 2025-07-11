@@ -89,9 +89,9 @@ pointings = []
 for ra in tel_ra:
     for dec in tel_dec:
         for pa in tel_pa:
-            pointings.append({"ra": ra, 
-                            "dec": dec, 
-                            "pa": pa})
+            pointings.append({"tel_ra": ra, 
+                              "tel_dec": dec, 
+                              "tel_pa": pa})
 
 sims = []
 seed = sim_config["seed"]
@@ -107,7 +107,7 @@ for sim_name in sim_config["names_of_sims"]:
             if "brighter_than" in cutoffs:
                 sel &= stars["magnitude"] <= cutoffs["brighter_than"]
             if "fainter_than" in cutoffs:
-                sel &= stars["magnitude"] >= cutoffs["fainter_than"]
+                sel &= stars["magnitude"] > cutoffs["fainter_than"]
         catalogs["star_input"] = stars[sel]
 
     if galaxies is not None:
@@ -117,7 +117,7 @@ for sim_name in sim_config["names_of_sims"]:
             if "brighter_than" in cutoffs:
                 sel &= galaxies["magnitude"] <= cutoffs["brighter_than"]
             if "fainter_than" in cutoffs:
-                sel &= galaxies["magnitude"] >= cutoffs["fainter_than"]
+                sel &= galaxies["magnitude"] > cutoffs["fainter_than"]
         catalogs["gal_input"] = galaxies[sel]
 
     scas = sim.pop("SCAs")
@@ -143,16 +143,9 @@ for pointing in pointings:
             **sim
         })
 
-def dosim(d, **kwargs):
-    mk_grism(tel_ra = d["ra"],
-             tel_dec = d["dec"],
-             tel_pa = d["pa"],
-             det_num = d["det_num"],
-             star_input = d["star_input"],
-             gal_input = d["gal_input"],
-             seed=d["seed"],
-             output_dir = outdir,
-             **kwargs)
+def dosim(d):
+    mk_grism(output_dir = outdir,
+             **d)
 
 with Pool(processes=36) as pool:
     res = pool.map(dosim, all_sims)
