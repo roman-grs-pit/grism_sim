@@ -1,5 +1,6 @@
 import numpy as np
 from astropy.io import fits
+from collections import defaultdict
 import os
 
 def group_grism_files(outdir, all_sim_params):
@@ -12,7 +13,7 @@ def group_grism_files(outdir, all_sim_params):
         base = f"grism_ra{sim["tel_ra"]}_dec{sim["tel_dec"]}_pa{sim["tel_pa"]}_detSCA{sim["det_num"]:02}"
         bases.add(base)
 
-    grouped = {}
+    grouped = defaultdict(list)
     for f in os.listdir(outdir):
         for base in bases:
             if f.startswith(base):
