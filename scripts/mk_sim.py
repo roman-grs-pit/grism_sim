@@ -115,9 +115,9 @@ for sim_name in sim_config["names_of_sims"]:
         if "galaxy_mag_cutoff" in sim and galaxies is not None:
             cutoffs = sim.pop("galaxy_mag_cutoff")
             if "brighter_than" in cutoffs:
-                sel &= galaxies["magnitude"] <= cutoffs["brighter_than"]
+                sel &= galaxies["mag_F158_Av1.6523"] <= cutoffs["brighter_than"]
             if "fainter_than" in cutoffs:
-                sel &= galaxies["magnitude"] > cutoffs["fainter_than"]
+                sel &= galaxies["mag_F158_Av1.6523"] > cutoffs["fainter_than"]
         catalogs["gal_input"] = galaxies[sel]
 
     scas = sim.pop("SCAs")
