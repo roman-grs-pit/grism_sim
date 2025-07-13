@@ -41,9 +41,9 @@ def combined_sims(outdir, grouped, seed):
                 sci += rng.poisson(noiseless_model * EXPTIME) / EXPTIME
                 noiseless_model_gather += noiseless_model
             
-        hdul["SCI"] = sci
-        hdul["ERR"] = np.sqrt((noiseless_model_gather + bg) * EXPTIME) / EXPTIME
-        hdul["MODEL"] = noiseless_model_gather
+        hdul["SCI"].data = sci
+        hdul["ERR"].data = np.sqrt((noiseless_model_gather + bg) * EXPTIME) / EXPTIME
+        hdul["MODEL"].data = noiseless_model_gather
         hdul.writeto(os.path.join(outdir, base + ".fits"), overwrite=True)
     
     return 0
