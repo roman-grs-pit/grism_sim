@@ -25,7 +25,7 @@ def combined_sims(outdir, grouped, seed):
 
     rng = np.random.default_rng(seed=seed)
 
-    for base, group in grouped:
+    for base, group in grouped.items():
         hdul = fits.open(group[0])
         sci = hdul["SCI"].data
         noiseless_model_0 = hdul["MODEL"].data
