@@ -9,7 +9,7 @@ def group_grism_files(outdir, all_sim_params):
     """
     bases = set()
     for sim in all_sim_params:
-        base = f"grism_ra{sim["tel_ra"]}_dec{sim["tel_dec"]}_pa{sim["tel_pa"]}_det{sim["det_num"]}"
+        base = f"grism_ra{sim["tel_ra"]}_dec{sim["tel_dec"]}_pa{sim["tel_pa"]}_detSCA{sim["det_num"]:02}"
         bases.add(base)
 
     grouped = {}
