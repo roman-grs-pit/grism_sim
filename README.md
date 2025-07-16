@@ -3,10 +3,12 @@
 ### Instructions for setting up NERSC environment needed to run Roman grism simulations
 Given NERSC install, hopefully the following is all that is needed for anyone in the roman group 
 
+Note, there is now a grizl1 conda environment with updated code installs, but the github links are still in the grizli0 directory
+
 ```
 module load conda
 
-conda activate /global/common/software/m4943/grizli0
+conda activate /global/common/software/m4943/grizli1
 
 PYTHONPATH=$PYTHONPATH:/global/common/software/m4943/grizli0/grism_sim/py
 
