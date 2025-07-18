@@ -561,4 +561,4 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,confv
     for ii in range(0, 8):
         print(f"Split {ii}-{ii+1}: ", (timings[f"checkpoint_{ii+1}"] - timings[f"checkpoint_{ii}"]))
 
-    return roman.model
+    return full_model_noiseless
