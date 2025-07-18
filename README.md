@@ -74,3 +74,51 @@ conda install pysynphot (other machines might need pip install pysynphot instead
 
 PYTHONPATH=$PYTHONPATH:/global/common/software/m4943/grizli0/grism_sim/py
 ```
+
+### Writing a new sim
+
+New sims can be created by writing a yaml file names sim_config.yaml in a new directory. Said file should have the following format:
+
+```
+stars: path_to_star_cat or null
+galaxies: path_to_gal_cat or null
+combine_sims: bool
+seed: int
+
+# tel_ra/tel_dec can be either int/float or dict with start, step, and num
+tel_ra: int, float
+tel_dec:
+  start: int, float
+  step: int, float
+  num: int
+tel_pa:
+  start: int, float
+  rolls: list
+dither: null, int, float or (ra, dec as shown below)
+  ra: int, float
+  dec: int, float
+
+names_of_sims: list (e.g. [1st_sim, 2nd_sim, …])
+
+1st_sim:
+  SCAs: int, list, or “all”
+  star_mag_cutoff:               # optional
+    brighter_than: int, float    # this is <= mag
+    fainter_than: int, float      # this is > mag
+  galaxy_mag_cutoff:          # optional
+    brighter_than: int, float   # this is <= mag
+    fainter_than: int, float     # this is > mag
+  key: val - kwargs (e.g. extra_grism_name, extra_ref_name, npsfs, …)
+
+2nd_sim:
+  …
+```
+
+Star catalogs are expected to have the following columns:
+RA, DEC, magnitude, star_template_index
+
+Galaxy catalogs are expected to have the following columns:
+RA, DEC, SIM, IDX, [some mag col, whose name is given as an argument]
+
+Galaxy SED templates are saved in "galacticus_FOV_EVERY100_sub_{SIM}.hdf5"
+Star templates filenames are saved in "star_fields/data/SEDtemplates/input_spectral_STARS.lis"
