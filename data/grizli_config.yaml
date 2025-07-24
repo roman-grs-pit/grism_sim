@@ -2,8 +2,8 @@ detector_size: 4088
 minlam: 10000 # Angstroms
 maxlam: 20000 # Angstroms
 grism_background: 0.57 # counts/sec
-GEXPTIME: 301 # sec; Grism exptime
-DIREXPTIME: 141 # sec; Direct exptime
+GEXPTIME: 189.75 # sec; Grism exptime
+DIREXPTIME: 107.25 # sec; Direct exptime
 thresh: 0.01
 
 pad: 1000 # Pad chosen to be >one full trace dx (make sure also includes size of object)
