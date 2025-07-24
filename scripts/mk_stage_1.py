@@ -1,3 +1,6 @@
+# ! This is deprecated. The latest stage 1 is run using the generalized mk_sim.py and sim_config.yaml method. See run_stage_1.sh job script for more info.
+
+
 from astropy.table import Table
 from grism_sim_psf_dependent import mk_grism
 import os

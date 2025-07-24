@@ -12,4 +12,4 @@
 #SBATCH -t 2:0:0
 #SBATCH -L cfs
 
-srun python /global/common/software/m4943/grizli0/grism_sim/scripts/mk_stage_1.py
+srun python /global/common/software/m4943/grizli0/grism_sim/scripts/mk_sim.py $SCRATCH/stage_1
