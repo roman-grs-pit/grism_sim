@@ -11,6 +11,21 @@ conf_file = os.path.join(outdir, "sim_config.yaml")
 with open(conf_file) as f:
     sim_config = yaml.safe_load(f)
 
+github_dir_env=os.getenv('github_dir')
+if github_dir_env is None:
+    print('github_dir environment variable has not been set, will cause problems if not explicitly set in function calls')
+
+def get_configs(confver, dets):
+    all_files = os.listdir(os.path.join(github_dir_env, "grism_sim/data", confver))
+    confs_by_det = {}
+    for f in all_files:
+        if f.startswith("Roman.det") and f.endswith("_rot.conf"):
+            det_num = int(f.split('.')[1][3:]) # extract det_num from filename
+            if det_num in dets:
+                confs_by_det[f"SCA{det_num:02}"] = os.path.join(confver, f)
+        
+    return confs_by_det
+
 # assert block
 for var in ["stars", "galaxies"]:
     msg = f"{var} not found in sim_config. If not simulating stars or galaxies, set to null."
@@ -92,6 +107,9 @@ for ra in tel_ra:
             pointings.append({"tel_ra": ra, 
                               "tel_dec": dec, 
                               "tel_pa": pa})
+            
+assert "confver" in sim_config, "confver not specified. Add confver to sim_config.yaml, pointing to the directory containing the config files to be used."
+confs_by_det = get_configs(sim_config["confver"], range(1, 19))
 
 sims = []
 seed = sim_config["seed"]
@@ -129,8 +147,10 @@ for sim_name in sim_config["names_of_sims"]:
         det_nums = [ii for ii in scas]
 
     for det_num in det_nums:
+        conf = confs_by_det[f"SCA{det_num:02}"]
         sims.append({"seed": seed,
                      "det_num": det_num,
+                     "conf": conf,
                      **catalogs,
                      **sim
                      })
@@ -147,9 +167,11 @@ def dosim(d):
     mk_grism(output_dir = outdir,
              **d)
 
-with Pool(processes=80) as pool:
-    res = pool.map(dosim, all_sims)
+print(all_sims)
 
-if sim_config["combine_sims"]:
-    grouped = ciu.group_grism_files(outdir, all_sims)
-    ciu.combined_sims(outdir, grouped, seed)
+# with Pool(processes=80) as pool:
+#     res = pool.map(dosim, all_sims)
+
+# if sim_config["combine_sims"]:
+#     grouped = ciu.group_grism_files(outdir, all_sims)
+#     ciu.combined_sims(outdir, grouped, seed)
