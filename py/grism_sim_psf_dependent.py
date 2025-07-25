@@ -76,7 +76,7 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,conf,
             grizli_conf[arg] = kwargs.pop(arg)
     
     det = "SCA{:02}".format(det_num)
-    fov_pixels = grizli_conf["fov_pixels"] # size of star thumbnails
+    half_fov_pixels = int(grizli_conf["fov_pixels"] / 2) # size of star thumbnails
     thresh = grizli_conf["thresh"] # threshhold pixel value to be dispersed
     size = grizli_conf["size"][det] + 364
     gpad = grizli_conf["pad"] # padding added in order to catch off-detector objects that disperse on-detector
@@ -240,12 +240,12 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,conf,
 
         start = time.time()
         # * read in/check psf_grid
-        psf_filename = f"wfi_grism0_fovp{fov_pixels}_wave{start_wave:.0f}_{det}.fits".lower() # {instrument}_{filter}_{fovp}_wave{wavelength}_{det}.fits
+        psf_filename = f"wfi_grism0_fovp{half_fov_pixels * 2}_wave{start_wave:.0f}_{det}.fits".lower() # {instrument}_{filter}_{fovp}_wave{wavelength}_{det}.fits
         try:
             psf_grid = pgu.load_psf_grid(psf_filename)
         except OSError as e:
             print("creating new PSF Grid")
-            pgu.save_one_grid(det_num, start_wave, psf_grid_data_write, fov_pixels=fov_pixels, **kwargs)
+            pgu.save_one_grid(det_num, start_wave, psf_grid_data_write, half_fov_pixels=half_fov_pixels, **kwargs)
             psf_grid = try_wait_loop(pgu.load_psf_grid, psf_filename)
         
         if check_psf:
@@ -279,18 +279,18 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,conf,
             ytrue = ypos - gpad
 
             start = time.time()
-            sp = iu.star_postage_grid(psf_grid,mag,xtrue,ytrue,fov_pixels=fov_pixels) # PSF from grid
+            sp = iu.star_postage_grid(psf_grid,mag,xtrue,ytrue,half_fov_pixels=half_fov_pixels) # PSF from grid
 
             end = time.time()
             timings["star_PSF_eval"] += (end - start)
 
             start = time.time()
             # sp limits are needed to keep only what fits on the detector (plus pad)
-            sp_lims = [max(0,-(yp-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(yp+fov_pixels-tot_im_size)),
-                        max(0,-(xp-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(xp+fov_pixels-tot_im_size))]
+            sp_lims = [max(0,-(yp-half_fov_pixels)), min(half_fov_pixels*2,half_fov_pixels*2-(yp+half_fov_pixels-tot_im_size)),
+                        max(0,-(xp-half_fov_pixels)), min(half_fov_pixels*2,half_fov_pixels*2-(xp+half_fov_pixels-tot_im_size))]
 
-            roman_lims = [max(0, yp-fov_pixels), min(tot_im_size, yp+fov_pixels), 
-                            max(0, xp-fov_pixels), min(tot_im_size, xp+fov_pixels)]
+            roman_lims = [max(0, yp-half_fov_pixels), min(tot_im_size, yp+half_fov_pixels), 
+                            max(0, xp-half_fov_pixels), min(tot_im_size, xp+half_fov_pixels)]
 
             # Set direct image equal to sp; don't add
             roman.direct.data["REF"][roman_lims[0]:roman_lims[1], roman_lims[2]:roman_lims[3]] = sp[sp_lims[0]:sp_lims[1],sp_lims[2]:sp_lims[3]]
@@ -401,7 +401,7 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,conf,
                 # convolve direct thumbnail with psf
                 imflux = iu.mag2flux(mag)#imflux = row['flux']
                 if conv_gal:
-                    gal_psf = iu.gal_postage_grid(psf_grid,xtrue,ytrue,fov_pixels=fov_pixels)
+                    gal_psf = iu.gal_postage_grid(psf_grid,xtrue,ytrue,half_fov_pixels=half_fov_pixels)
                     
                     end = time.time()
                     timings["gal_PSF_eval"] += (end - start)
@@ -419,11 +419,11 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,conf,
 
                 start = time.time()
                 # sp limits are needed to keep only what fits on the detector (plus pad)
-                sp_lims = [max(0,-(yp-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(yp+fov_pixels-tot_im_size)),
-                            max(0,-(xp-fov_pixels)), min(fov_pixels*2,fov_pixels*2-(xp+fov_pixels-tot_im_size))]
+                sp_lims = [max(0,-(yp-half_fov_pixels)), min(half_fov_pixels*2,half_fov_pixels*2-(yp+half_fov_pixels-tot_im_size)),
+                            max(0,-(xp-half_fov_pixels)), min(half_fov_pixels*2,half_fov_pixels*2-(xp+half_fov_pixels-tot_im_size))]
 
-                roman_lims = [max(0, yp-fov_pixels), min(tot_im_size, yp+fov_pixels), 
-                                max(0, xp-fov_pixels), min(tot_im_size, xp+fov_pixels)]
+                roman_lims = [max(0, yp-half_fov_pixels), min(tot_im_size, yp+half_fov_pixels), 
+                                max(0, xp-half_fov_pixels), min(tot_im_size, xp+half_fov_pixels)]
 
                 # Set direct image equal to sp; don't add
                 roman.direct.data["REF"][roman_lims[0]:roman_lims[1], roman_lims[2]:roman_lims[3]] = sp[sp_lims[0]:sp_lims[1],sp_lims[2]:sp_lims[3]]
