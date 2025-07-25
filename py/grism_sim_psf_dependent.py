@@ -47,7 +47,7 @@ def try_wait_loop(func, *args, max_attempts=3, wait=5, **kwargs):
     
     return res
 
-def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,conf,extra_grism_name='',extra_ref_name='',
+def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,extra_grism_name='',extra_ref_name='',
              github_dir=github_dir_env,gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,
              mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/', check_psf=False, 
              conv_gal=True, use_tqdm=False, seed=3, **kwargs):
@@ -81,6 +81,10 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,conf,
     size = grizli_conf["size"][det] + 364
     gpad = grizli_conf["pad"] # padding added in order to catch off-detector objects that disperse on-detector
     tot_im_size = grizli_conf["detector_size"] + 2*gpad 
+    confdir = grizli_conf["confdir"]
+    conf = grizli_conf["conf"][det]
+    if confdir is not None:
+        conf = os.path.join(confdir, conf)
     
     #this ends up setting the background noise and defines the WCS
     background = grizli_conf["grism_background"]
