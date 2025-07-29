@@ -455,10 +455,13 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,confv
                 sel_wave &= wave < maxlam
                 wave = wave[sel_wave]
                 flux = sed_flux[sel_wave]
-                
-                gal_spec = S.ArraySpectrum(wave=wave, flux=flux, waveunits="angstroms", fluxunits="flam")
-                spec = gal_spec.renorm(mag, "abmag", bp) # renorm and convert units
-                spec.convert("flam") 
+                gal_spec = S.ArraySpectrum(wave=wave, flux=flux, waveunits="angstroms", fluxunits="fnu")
+                gal_spec.convert("flam")
+                spec = gal_spec.renorm(mag, "abmag", bp)
+
+                #gal_spec = S.ArraySpectrum(wave=wave, flux=flux, waveunits="angstroms", fluxunits="flam")
+                #spec = gal_spec.renorm(mag, "abmag", bp) # renorm and convert units
+                #spec.convert("flam") 
 
                 # if-elses enforce minlam/maxlam bounds on the spectrum (and avoid issues with negative indicies)
                 if start_wave != minlam:
