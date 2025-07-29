@@ -12,6 +12,7 @@ wfi.filter = "GRISM0" #eventually make this detector specific
 def star_postage_grid(psf_grid, mag, detx=2044, dety=2044, half_fov_pixels=182):
     """
     Evaluate the PSF at a specific point using a given GriddedPSFModel object.
+    returns psf thumbnail: 2d numpy.ndarray w/size half_fov_pixels*2 in both dim
 
     Parameters
     ----------
@@ -39,6 +40,7 @@ def star_postage_grid(psf_grid, mag, detx=2044, dety=2044, half_fov_pixels=182):
 def gal_postage_grid(psf_grid, detx=2044, dety=2044, half_fov_pixels=364, flux=1):
     """
     Evaluate the PSF at a specific point using a given GriddedPSFModel object.
+    returns psf thumbnail: 2d numpy.ndarray w/size half_fov_pixels*2 in both dim
 
     Parameters
     ----------
@@ -62,6 +64,7 @@ def gal_postage_grid(psf_grid, detx=2044, dety=2044, half_fov_pixels=364, flux=1
 def create_psf_grid(wavelength=1.5e-6, fov_pixels=364, det="SCA01"):
     """
     Generate new monochromatic GriddedPSFModel object.
+    returns psf_grid: GriddedPSFModel
 
     Parameters
     ----------
@@ -81,6 +84,7 @@ def create_psf_grid(wavelength=1.5e-6, fov_pixels=364, det="SCA01"):
 def mag2flux(mag,zp=26.5):
     """
     Convert magnitude to flux.
+    returns flux observed by detector: float
 
     Parameters
     ----------
@@ -98,6 +102,7 @@ def star_postage(mag,detx=2044,dety=2044,offx=0,offy=0,wavelength = 1.5e-6, fov_
     """
     Evaluate monochromatic PSF for a given detector at a given detector coordinate. 
     Total thumbnail size in pixel is fov_pixels * oversample.
+    returns psf thumbnail: 2d numpy.ndarray w/size fov_pixels*oversample in both dim
 
     Parameters
     ----------
@@ -140,6 +145,7 @@ def get_psf(wavelength = 1.5e-6, fov_pixels=364, oversample=4,detx=2044,dety=204
     Total thumbnail size in pixel is fov_pixels * oversample. This function does
     not support source offset and returns PSF normalized such that it sums to 1, 
     i.e. not adjusted to an object's flux.
+    returns psf thumbnail: 2d numpy.ndarray w/size fov_pixels*oversample in both dim
 
     Parameters
     ----------
@@ -169,12 +175,13 @@ def get_psf(wavelength = 1.5e-6, fov_pixels=364, oversample=4,detx=2044,dety=204
 def star_postage_inpsf(mag,psf):
     """
     Adjust a fiducial PSF to given magnitude.
+    returns psf thumbnail: numpy.ndarray
 
     Parameters
     ----------
     mag: float
         Magnitude of the object. Converted to flux using mag2flux.
-    psf: numpy.ndarray
+    psf: HDU
         PSF thumbnail, normalized to sum to 1.
     """
     flux = mag2flux(mag)
@@ -233,6 +240,7 @@ def add_wcs(hdu,crval1, crval2, crpix2=2044,crpix1=2044, cdelt1=0.11, cdelt2=0.1
                 crota2=0.0,naxis1=4088,naxis2=4088):
     """
     Adds WCS information to given HDU header
+    returns hdu.header: astropy.io.fits.header.Header
 
     Parameters
     ----------
