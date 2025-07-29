@@ -147,11 +147,9 @@ def dosim(d):
     mk_grism(output_dir = outdir,
              **d)
 
-# with Pool(processes=80) as pool:
-#     res = pool.map(dosim, all_sims)
+with Pool(processes=80) as pool:
+    res = pool.map(dosim, all_sims)
 
-# if sim_config["combine_sims"]:
-#     grouped = ciu.group_grism_files(outdir, all_sims)
-#     ciu.combined_sims(outdir, grouped, seed)
-
-dosim(all_sims[0])
+if sim_config["combine_sims"]:
+    grouped = ciu.group_grism_files(outdir, all_sims)
+    ciu.combined_sims(outdir, grouped, seed)
