@@ -411,7 +411,7 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,extra
                     timings["gal_PSF_eval"] += (end - start)
 
                     start = time.time()
-                    conv_prof = signal.convolve2d(gal_psf,testprof,mode='same') 
+                    conv_prof = signal.fftconvolve(gal_psf,testprof,mode='same') 
                     sp = imflux*conv_prof
 
                     end = time.time()
