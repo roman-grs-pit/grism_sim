@@ -303,9 +303,10 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,c
         sim = h5py.File(sim_fn, 'r')
         sed = sim['Outputs']['SED:observed:dust:Av1.6523'][row['IDX']]
         flux = sed[sel_wave]
-        gal_spec = S.ArraySpectrum(wave=wave, flux=flux, waveunits="angstroms", fluxunits="flam")
+        gal_spec = S.ArraySpectrum(wave=wave, flux=flux, waveunits="angstroms", fluxunits="fnu")
+        gal_spec.convert("flam")
         spec = gal_spec.renorm(mag, "abmag", bp)
-        spec.convert("flam")
+        
         
         roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=True, store=False,
                                    is_cgs=True, spectrum_1d=[spec.wave, spec.flux])
