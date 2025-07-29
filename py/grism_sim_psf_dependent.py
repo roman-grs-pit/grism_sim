@@ -31,6 +31,20 @@ if psf_grid_data_write is None:
     print("psf_grid_data_write variable has not been set. This will cause problems if psf_grid fits do not already exist.")
 
 def try_wait_loop(func, *args, max_attempts=3, wait=5, **kwargs):
+    """
+    Attempt to call func using args and kwargs. Upon a fail, wait som time and try
+    again. Upon {max_attempts} number of fails, raise Exception. Used when reading
+    files recently written on NERSC.
+
+    Parameters
+    ----------
+    func: callable
+        Function or other callable to attempt calling
+    max_attempts: int, optional
+        Maximum number of attempts before raising exception. default: 3
+    wait: float, optional
+        Seconds to wait upon failure before retrying. default: 5
+    """
     attempt = 0
     while attempt < max_attempts:
         try:
@@ -51,6 +65,65 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,extra
              github_dir=github_dir_env,gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,
              mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/', check_psf=False, 
              conv_gal=True, use_tqdm=False, seed=3, **kwargs):
+    """
+    Simulated Roman WFI Grism Image of objects in catalogs. Includes background and
+    shot noise. Final fits file contains: PrimaryHDU, SCI, ERR, DQ, Noiseless Model
+
+    Process Outline:
+    Load default config -> Prepare WCS -> Save empty fits files for Grizli --
+    --> Cut catalogs to on-detector objects -> Instantiate grizli.GrismFLT --
+    --> Loop over wavelength bins: ( Load PSF Grid -> Loop over objects: (
+    Compute monochromatic direct image -> Write direct & segmentation image
+    to GrismFLT -> Cut out relevant part of spectrum -> Compute piece of sim ))
+    --> Save full simulation result and first computed monochromatic direct
+    image as fits files.
+
+    Parameters
+    ----------
+    tel_ra: float
+        WFI Center pointing, RA in degrees
+    tel_dec: float
+        WFI Center pointing, Dec in degrees
+    tel_pa: float
+        WFI Center pointing, PA in degrees
+    det_num: int
+        Detector Number
+    star_input: astropy.table.Table
+        Table with columns 'RA', 'DEC', 'magnitude', 'star_template_index'
+    gal_input: astropy.table.Table
+        Table with columns 
+    output_dir: str
+        Path to directory for output
+    extra_grism_name: str, optional
+        Appended to grism fits file
+    extra_ref_name: str, optional
+        Appended to empty reference fits file
+    github_dir: str, optional
+        Path to directory containing all GRS PIT Github repos. 
+        default: reads environment variable
+    gal_mag_col: str, optional
+        Name of the column in the gal_input catalog wih magnitude information
+        default: "mag_F158_Av1.6523"
+    dogal: str, optional
+        Simulates galaxies if set to 'y'
+        default: 'y'
+    magmax: float, optional
+        Brightest galaxy magnitude to simulate; Fainter galaxies are skipped
+        default: 25
+    mockdir: float, optional
+        Directory containing galaxy SEDs. default: NERSC path
+    check_psf: bool, optional
+        Determines whether to check psf_grid fits files match given kwargs. 
+        default: False
+    conv_gal: bool, optional
+        Determines whether to calculate and convolve PSF with galaxies.
+        default: True
+    use_tqdm: bool, optional
+        Show tqdm progress bar during simulation. Reccomend set to False when 
+        running sbatch jobs on NERSC. default: False
+    seed: int, optional
+        Numpy rng seed for noise. default: 3
+    """
     #tel_ra,tel_dec correspond to the coordinates (in degrees) of the middle of the field (not the detector center)
     #tel_pa is the position angle (in degrees), relative to lines of ra=constant; note, requires +60 on tel_pa for wfi_sky_pointing
     #det_num is an integer corresponding to the detector number

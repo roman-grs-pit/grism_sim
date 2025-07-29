@@ -7,6 +7,14 @@ def group_grism_files(outdir, all_sim_params):
     """
     Group grism files in a directory by ra, dec, pa, & det_num
     Returns a dict: {base: [file1, file2, ...]}
+
+    Parameters
+    ----------
+    outdir: str
+        Directory containing files to be grouped.
+    all_sim_params: list of dictionaries
+        list of dictionaries containing "tel_ra", "tel_dec", "tel_pa", and 
+        "det_num" if simulation run to be grouped.
     """
     bases = set()
     for sim in all_sim_params:
@@ -22,6 +30,19 @@ def group_grism_files(outdir, all_sim_params):
     return grouped
 
 def combined_sims(outdir, grouped, seed):
+    """
+    Iterates through grouped fits files to combine partial simulations into full
+    sims. Shot noise and ERR are recompouted as combinations occur.
+
+    Parameters
+    ----------
+    outdir: str
+        Directory containing fits files to be combined
+    grouped: dict
+        Dictionary contianing grouped filenames and base by which they were grouped
+    seed: int, optional
+        Numpy rng seed for noise. default: 3
+    """
 
     rng = np.random.default_rng(seed=seed)
 
