@@ -41,14 +41,14 @@ size:
 confdir: 01282025
 conf:
   SCA01: Roman.det1.12112024_rot.conf
-  SCA02: Roman.det2.12112024_rot.conf
-  SCA03: Roman.det3.12112024_rot.conf
-  SCA04: Roman.det4.12112024_rot.conf
-  SCA05: Roman.det5.12112024_rot.conf
-  SCA06: Roman.det6.12112024_rot.conf
-  SCA07: Roman.det7.12112024_rot.conf
-  SCA08: Roman.det8.12112024_rot.conf
-  SCA09: Roman.det9.12112024_rot.conf
+  SCA02: Roman.det2.12182024_rot.conf
+  SCA03: Roman.det3.12182024_rot.conf
+  SCA04: Roman.det4.12182024_rot.conf
+  SCA05: Roman.det5.12182024_rot.conf
+  SCA06: Roman.det6.12182024_rot.conf
+  SCA07: Roman.det7.12182024_rot.conf
+  SCA08: Roman.det8.12182024_rot.conf
+  SCA09: Roman.det9.12182024_rot.conf
   SCA10: Roman.det10.01282025_rot.conf
   SCA11: Roman.det11.01282025_rot.conf
   SCA12: Roman.det12.01282025_rot.conf
