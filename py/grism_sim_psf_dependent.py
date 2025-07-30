@@ -61,10 +61,11 @@ def try_wait_loop(func, *args, max_attempts=3, wait=5, **kwargs):
     
     return res
 
-def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,extra_grism_name='',extra_ref_name='',
-             github_dir=github_dir_env,gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,
-             mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/', check_psf=False, 
-             conv_gal=True, use_tqdm=False, seed=3, **kwargs):
+def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,
+             extra_grism_name='',extra_ref_name='',github_dir=github_dir_env,
+             gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,
+             mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/',
+             check_psf=False,conv_gal=True,use_tqdm=False,seed=3,**kwargs):
     """
     Simulated Roman WFI Grism Image of objects in catalogs. Includes background and
     shot noise. Final fits file contains: PrimaryHDU, SCI, ERR, DQ, Noiseless Model
@@ -232,6 +233,7 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,extra
     #print(stars00['Xpos'].shape)
     stars['Xpos'] = star_xy[0][sel_ondet]
     stars['Ypos'] = star_xy[1][sel_ondet]
+    nstar = len(stars)
     ngal = 0
 
     # Cuts galaxy catalog and preps convolution info?
@@ -618,8 +620,6 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,extra
     hdu_list.close()
     print('wrote to '+out_fn)
 
-    timings["checkpoint_8"] = time.time()
-    print("checkpoint_8")
     # * save monochromatic direct image
     hdu_list = fits.open(empty_direct_fits_out_nopad)
     if gpad != 0:
@@ -631,11 +631,33 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,extra
     hdu_list.close()
     print('wrote to '+out_fn)
 
+    timings["checkpoint_8"] = time.time()
+    print("checkpoint_8")
+
     # * print timings
     for key in timings.keys():
         if "checkpoint" not in key:
             print(key, timings[key])
     for ii in range(0, 8):
         print(f"Split {ii}-{ii+1}: ", (timings[f"checkpoint_{ii+1}"] - timings[f"checkpoint_{ii}"]))
+
+    timing_file = os.path.join(output_dir, f"timings_for_{fn_root_grism}.txt")
+    with open(timing_file, "w") as f:
+        f.write(f"NStars: {nstar} \n")
+        f.write(f"NGals: {ngal} \n")
+        f.write(f"NPSFs: {npsfs} \n")
+        f.write(f"\nCheckpoints\n")
+        f.write(f"-----------\n")
+        for ii in range(0, 8):
+            s = f"Split {ii}-{ii+1}: {timings[f'checkpoint_{ii+1}'] - timings[f'checkpoint_{ii}']} \n"
+            f.write(s)  
+        
+        f.write(f"\nFor-loops (6-7 split)\n")
+        f.write(f"---------------------\n")
+        f.write("")
+        for key in timings.keys():
+            if "checkpoint" not in key:
+                s = f"{key} - {timings[key]} \n"
+                f.write(s)
 
     return full_model_noiseless
