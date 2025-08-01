@@ -150,7 +150,7 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,
             grizli_conf[arg] = kwargs.pop(arg)
     
     det = "SCA{:02}".format(det_num)
-    half_fov_pixels = int(grizli_conf["fov_pixels"] / 2) # size of star thumbnails
+    half_fov_pixels = grizli_conf["fov_pixels"] // 2 # size of star thumbnails
     thresh = grizli_conf["thresh"] # threshhold pixel value to be dispersed
     size = grizli_conf["size"][det] + 364
     gpad = grizli_conf["pad"] # padding added in order to catch off-detector objects that disperse on-detector
@@ -358,7 +358,7 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,
             ytrue = ypos - gpad
 
             start = time.time()
-            sp = iu.star_postage_grid(psf_grid,mag,xtrue,ytrue,half_fov_pixels=half_fov_pixels) # PSF from grid
+            sp = iu.psf_grid_evaluate_fast(psf_grid,xtrue,ytrue,mag) # PSF from grid
 
             end = time.time()
             timings["star_PSF_eval"] += (end - start)
@@ -409,7 +409,7 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,
             if start_wave != minlam:
                 # Adjust start_wave to include overlap region
                 start_wave_index = np.searchsorted(spec.wave, start_wave, side="left")
-                start_index_w_overlap = start_wave_index - int(spectrum_overlap * 0.5)
+                start_index_w_overlap = start_wave_index - (spectrum_overlap // 2)
                 sel = wave >= spec.wave[start_index_w_overlap]
             else:
                 # Set lower limit on sel_wave
@@ -418,7 +418,7 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,
             if end_wave != maxlam:
                 # Adjust end_wave to include overlap region
                 end_wave_index = np.searchsorted(spec.wave, end_wave, side="right")
-                end_index_w_overlap = end_wave_index + int(spectrum_overlap * 0.5 - 1) 
+                end_index_w_overlap = end_wave_index + ((spectrum_overlap // 2) - 1) 
                 sel &= wave < spec.wave[end_index_w_overlap]
             else:
                 # Set upper limit on sel_wave
@@ -480,7 +480,7 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,
                 # convolve direct thumbnail with psf
                 imflux = iu.mag2flux(mag)#imflux = row['flux']
                 if conv_gal:
-                    gal_psf = iu.gal_postage_grid(psf_grid,xtrue,ytrue,half_fov_pixels=half_fov_pixels)
+                    gal_psf = iu.psf_grid_evaluate_fast(psf_grid,xtrue,ytrue,None)
                     
                     end = time.time()
                     timings["gal_PSF_eval"] += (end - start)
@@ -543,7 +543,7 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,
                 if start_wave != minlam:
                     # Adjust start_wave to include overlap region
                     start_wave_index = np.searchsorted(spec.wave, start_wave, side="left")
-                    start_index_w_overlap = start_wave_index - int(spectrum_overlap * 0.5)
+                    start_index_w_overlap = start_wave_index - (spectrum_overlap // 2)
                     sel_wave = spec.wave >= spec.wave[start_index_w_overlap]
                 else:
                     # Set lower limit on sel_wave
@@ -552,7 +552,7 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,
                 if end_wave != maxlam:
                     # Adjust end_wave to include overlap region
                     end_wave_index = np.searchsorted(spec.wave, end_wave, side="right")
-                    end_index_w_overlap = end_wave_index + int(spectrum_overlap * 0.5 - 1) 
+                    end_index_w_overlap = end_wave_index + ((spectrum_overlap // 2) - 1) 
                     sel_wave &= spec.wave < spec.wave[end_index_w_overlap]
                 else:
                     # Set upper limit on sel_wave

@@ -7,7 +7,90 @@ except:
     import webbpsf as stpsf
 
 wfi = stpsf.roman.WFI()
-wfi.filter = "GRISM0" #eventually make this detector specific
+wfi.filter = "GRISM0" 
+
+# We are currently using an older version of photutils where a few of the PSF grid functions 
+# are not available.
+# We therefore duplicate these here. At some point we should see if we can update photutils
+# and deprecate these.
+def _v2_find_bounding_points(psf_grid, x, y):
+    """Find the grid points surrounding the point (x0, y0)."""
+    xgrid = psf_grid._xgrid
+    ygrid = psf_grid._ygrid
+
+    # Find the indices of the grid points that bound (x, y)
+    x_idx = np.searchsorted(xgrid, x) - 1
+    y_idx = np.searchsorted(ygrid, y) - 1
+
+    # Ensure indices are within bounds
+    x_idx = np.clip(x_idx, 0, len(xgrid) - 2)
+    y_idx = np.clip(y_idx, 0, len(ygrid) - 2)
+
+    # Find the four bounding points in the sorted grid
+    # (x0, y0) is the lower-left corner of the grid
+    # (x1, y1) is the upper-right corner of the grid
+    x0, x1 = xgrid[x_idx], xgrid[x_idx + 1]
+    y0, y1 = ygrid[y_idx], ygrid[y_idx + 1]
+
+    # Find the indices of these points in grid_xypos
+    xcoords, ycoords = psf_grid.grid_xypos.T
+    lower_left = np.where((xcoords == x0) & (ycoords == y0))[0][0]
+    lower_right = np.where((xcoords == x1) & (ycoords == y0))[0][0]
+    upper_left = np.where((xcoords == x0) & (ycoords == y1))[0][0]
+    upper_right = np.where((xcoords == x1) & (ycoords == y1))[0][0]
+
+    grid_idx = np.array((lower_left, lower_right, upper_left, upper_right))
+    grid_xy = np.array((x0, x1, y0, y1))
+
+    return grid_idx, grid_xy
+
+def _v2_calc_bilinear_weights(x, y, grid_xy):
+    """Calculate the bilinear interpolation weights for the point (x, y) based on the bounding grid points."""
+    x0, x1, y0, y1 = grid_xy
+
+    # Calculate the weights
+    w_x0 = (x1 - x) / (x1 - x0)
+    w_x1 = (x - x0) / (x1 - x0)
+    w_y0 = (y1 - y) / (y1 - y0)
+    w_y1 = (y - y0) / (y1 - y0)
+
+    # Combine the weights
+    weights = np.array([w_x0 * w_y0, w_x1 * w_y0, w_x0 * w_y1, w_x1 * w_y1])
+
+    return weights
+
+# My original plan was to rewrite the gridded PSF class, but instead I think I can just hack 
+# this on, using the built in terms. If that is too slow, we can always try other approaches.
+def psf_grid_evaluate_fast(psf_grid, x0, y0, mag):
+    """
+    Evaluate the PSF at a specific point using a given GriddedPSFModel object.
+    returns psf thumbnail: numpy.ndarray
+
+    Parameters
+    ----------
+    psf_grid: GriddedPSFModel
+        Photutils PSF Grid
+    detx: float
+        x postition of the object on the detector in science coordinates.
+    dety: float
+        y postition of the object on the detector in science coordinates.
+    mag: float, None
+        Magnitude of the object. Converted to flux using mag2flux. If set to None,
+        returned thumbnail will be normalized to sum to 1 (useful for galaxies).
+    """
+    if mag is not None:
+        flux = mag2flux(mag)
+    else:
+        flux = 1
+    
+    grid_idx, grid_xy = _v2_find_bounding_points(psf_grid, x0, y0)
+    weights = _v2_calc_bilinear_weights(x0, y0, grid_xy)
+
+    result = 0
+    for idx, weight in zip(grid_idx, weights, strict=True):
+        result += weight * psf_grid.data[idx]
+
+    return result * flux
 
 def star_postage_grid(psf_grid, mag, detx=2044, dety=2044, half_fov_pixels=182):
     """
