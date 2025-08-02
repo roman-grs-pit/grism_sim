@@ -25,7 +25,7 @@ if github_dir_env is None:
     print('github_dir environment variable has not been set, will cause problems if not explicitly set in function calss')
 
 
-def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,confver='07242020',psf_cutout_size=365,extra_grism_name='',github_dir=github_dir_env,gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/'):
+def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,psf_cutout_size=365,extra_grism_name='',github_dir=github_dir_env,gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/',**kwargs):
     #tel_ra,tel_dec correspond to the coordinates (in degrees) of the middle of the field (not the detector center)
     #pa is the position angle (in degrees), relative to lines of ra=constant; note, requires +60 on pa for wfi_sky_pointing
     #det_num is an integer corresponding to the detector number
@@ -37,6 +37,16 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,c
     conf_file = os.path.join(github_dir, "grism_sim/data/grizli_config.yaml")
     with open(conf_file) as f:
         grizli_conf = yaml.safe_load(f)
+
+    kwkeys = list(kwargs.keys())
+    for arg in kwkeys:
+        if arg in grizli_conf:
+            grizli_conf[arg] = kwargs.pop(arg)
+        
+    confdir = grizli_conf["confdir"]
+    conf = grizli_conf["conf"][det]
+    if confdir is not None:
+        conf = os.path.join(confdir, conf)
     
     pad = psf_cutout_size
     gpad = grizli_conf["pad"]
@@ -205,7 +215,7 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,c
     head = wcs.to_header()
     grizli.fake_image.make_fake_image(h, output=empty_grism, exptime=EXPTIME, nexp=NEXP, background=background)
     file = fits.open(empty_grism)
-    file[1].header["CONFFILE"] = os.path.join(github_dir, "grism_sim/data/Roman.det"+str(det_num)+"."+confver+".conf") #% (det_num,confver))
+    file[1].header["CONFFILE"] = os.path.join(github_dir, "grism_sim/data", conf)
     file.writeto(empty_grism, overwrite=True)
     file.close()
 

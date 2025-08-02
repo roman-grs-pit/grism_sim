@@ -19,21 +19,42 @@ spectrum_overlap: 10 # Extent of overlap between PSFs in Angstroms (roll-on/off)
 # 2) These sizes do not account for size of objects, but only for maximum dy+10 on the detector; Ashley increased each by ~10% after seeing a number of messages about dispersion going outside of bounds.
 # These sizes do have a significant impact on compute times and should be minimized as much as possible.
 size: 
- SCA01: 87
- SCA02: 90
- SCA03: 105
- SCA04: 200
- SCA05: 225
- SCA06: 250
- SCA07: 302
- SCA08: 342
- SCA09: 368
- SCA10: 118
- SCA11: 131
- SCA12: 140
- SCA13: 243
- SCA14: 260
- SCA15: 280
- SCA16: 350
- SCA17: 375
- SCA18: 400
+  SCA01: 87
+  SCA02: 90
+  SCA03: 105
+  SCA04: 200
+  SCA05: 225
+  SCA06: 250
+  SCA07: 302
+  SCA08: 342
+  SCA09: 368
+  SCA10: 118
+  SCA11: 131
+  SCA12: 140
+  SCA13: 243
+  SCA14: 260
+  SCA15: 280
+  SCA16: 350
+  SCA17: 375
+  SCA18: 400
+
+confdir: 01282025
+conf:
+  SCA01: Roman.det1.12112024_rot.conf
+  SCA02: Roman.det2.12182024_rot.conf
+  SCA03: Roman.det3.12182024_rot.conf
+  SCA04: Roman.det4.12182024_rot.conf
+  SCA05: Roman.det5.12182024_rot.conf
+  SCA06: Roman.det6.12182024_rot.conf
+  SCA07: Roman.det7.12182024_rot.conf
+  SCA08: Roman.det8.12182024_rot.conf
+  SCA09: Roman.det9.12182024_rot.conf
+  SCA10: Roman.det10.01282025_rot.conf
+  SCA11: Roman.det11.01282025_rot.conf
+  SCA12: Roman.det12.01282025_rot.conf
+  SCA13: Roman.det13.01282025_rot.conf
+  SCA14: Roman.det14.01282025_rot.conf
+  SCA15: Roman.det15.01282025_rot.conf
+  SCA16: Roman.det16.01282025_rot.conf
+  SCA17: Roman.det17.01282025_rot.conf
+  SCA18: Roman.det18.01282025_rot.conf
