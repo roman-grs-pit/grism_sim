@@ -11,15 +11,7 @@ import subprocess
 # outdir = os.path.join(os.getenv("SCRATCH"), "tests")
 outdir = os.path.join("/global/cfs/cdirs/m4943/grismsim/visual_inspection")
 
-try:
-    tag = subprocess.check_output("git describe --tags --exact-match", shell=True).decode().strip()
-except subprocess.CalledProcessError as e:
-    cont = input("Not on a tagged commit. Continue anyway? (y/n)")
-    if cont:
-        tag = subprocess.check_output("git describe --tags", shell=True).decode().strip()
-        pass
-    else:
-        raise e
+tag = subprocess.check_output("git describe --tags", shell=True).decode().strip()
 
 tel_ra = 10
 tel_dec = 10
@@ -98,5 +90,4 @@ plt.savefig(os.path.join(outdir, f"{tag}_footprint.png"), bbox_inches="tight")
 
 for det_num in range(1, 19):
     mk_grism(tel_ra, tel_dec, tel_pa, det_num, star_input, gal_input, outdir, 
-             extra_grism_name=extra_grism_name, extra_ref_name=extra_ref_name,
-             mockdir=os.path.join(os.getenv("SCRATCH"), "data"))
+             extra_grism_name=extra_grism_name, extra_ref_name=extra_ref_name)
