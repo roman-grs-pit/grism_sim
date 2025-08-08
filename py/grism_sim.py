@@ -11,12 +11,14 @@ import os, sys
 # import matplotlib.pyplot as plt
 # Spectra tools
 import pysynphot as S
+import time
 
 from grizli.model import GrismFLT
 import grizli.fake_image
 
 import pysiaf
 import image_utils as iu
+import psf_grid_utils as pgu
 
 import yaml
 
@@ -24,8 +26,40 @@ github_dir_env=os.getenv('github_dir')
 if github_dir_env is None:
     print('github_dir environment variable has not been set, will cause problems if not explicitly set in function calss')
 
+def try_wait_loop(func, *args, max_attempts=3, wait=5, **kwargs):
+    """
+    Attempt to call func using args and kwargs. Upon a fail, wait som time and try
+    again. Upon {max_attempts} number of fails, raise Exception. Used when reading
+    files recently written on NERSC.
 
-def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,psf_cutout_size=365,extra_grism_name='',github_dir=github_dir_env,gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/',**kwargs):
+    Parameters
+    ----------
+    func: callable
+        Function or other callable to attempt calling
+    max_attempts: int, optional
+        Maximum number of attempts before raising exception. default: 3
+    wait: float, optional
+        Seconds to wait upon failure before retrying. default: 5
+    """
+    attempt = 0
+    while attempt < max_attempts:
+        try:
+            res = func(*args, **kwargs)
+            break
+        except Exception as e:
+            attempt += 1 
+            if attempt < max_attempts:
+                print(f"{func.__name__} failed. Waiting {wait} and retrying: {attempt}/{max_attempts}")
+                time.sleep(wait)
+            else:
+                print(f"{func.__name__} failed. Maximum retries exceeded: {max_attempts}")
+                raise e
+    
+    return res
+
+def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,psf_cutout_size=365,extra_grism_name='',
+                     github_dir=github_dir_env,gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,
+                     mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/',check_psf=False,**kwargs):
     #tel_ra,tel_dec correspond to the coordinates (in degrees) of the middle of the field (not the detector center)
     #pa is the position angle (in degrees), relative to lines of ra=constant; note, requires +60 on pa for wfi_sky_pointing
     #det_num is an integer corresponding to the detector number
@@ -106,7 +140,24 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,p
     stars['Ypos'] = star_xy[1][sel_ondet]
     Ntot= len(stars)
     ngal = 0
-    fid_psf = iu.get_psf(fov_pixels=pad-1, det=det)
+
+    half_fov_pixels = grizli_conf["fov_pixels"] // 2
+    psf_filename = f"wfi_grism0_fovp{half_fov_pixels * 2}_wave{15000:.0f}_{det}.fits".lower() # {instrument}_{filter}_{fovp}_wave{wavelength}_{det}.fits
+    try:
+        psf_grid = pgu.load_psf_grid(psf_filename)
+    except OSError as e:
+        print("creating new PSF Grid")
+        pgu.save_one_grid(det_num, 15000, os.getenv("psf_grid_data_write"), half_fov_pixels=half_fov_pixels, **kwargs)
+        psf_grid = try_wait_loop(pgu.load_psf_grid, psf_filename)
+    
+    if check_psf:
+            if kwargs is not None:
+                pgu.check_version(psf_filename, **kwargs)
+            else:
+                pgu.check_version(psf_filename)
+
+    fid_psf = iu.psf_grid_evaluate_fast(psf_grid,2044,2044,None)
+
     if dogal == 'y':
         # gal_coords = SkyCoord(ra=(gal_input['RA'])*u.degree,dec=gal_input['DEC']*u.degree, frame='icrs')
         # gal_xy = im_wcs.world_to_pixel(gal_coords)
@@ -137,7 +188,7 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,p
         round_exp = Sersic2D(amplitude=1, r_eff=r_eff,n=1) #round exponential 
         testprof = round_exp(x,y) #np.ones((4,4)) #just something that is not a pointsource, this should get much better
         testprof /= np.sum(testprof) #normalize the profile
-        conv_prof_fixed = signal.convolve2d(fid_psf[0].data,testprof,mode='same')
+        conv_prof_fixed = signal.fftconvolve(fid_psf,testprof,mode='same') 
 
     full_image = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)))
     full_seg = np.zeros((4088+2*(gpad+pad),4088+2*(gpad+pad)),dtype=int)
@@ -154,11 +205,11 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,p
         xoff = 0#xpos-xp
         yoff = 0#ypos-yp
         
-        sp = iu.star_postage_inpsf(mag,fid_psf)
+        sp = iu.psf_grid_evaluate_fast(psf_grid,xpos,ypos,mag)
         #can code something here to not use constant psf
         #else:
         #    sp = iu.star_postage(mag,xpos,ypos,xoff,yoff,fov_pixels=pad-1, det=det)
-        fov_pixels = pad-1
+        fov_pixels = (pad-1) // 2
         full_image[yp+pad-fov_pixels:yp+pad+fov_pixels,xp+pad-fov_pixels:xp+pad+fov_pixels] += sp
         selseg = sp > thresh
         full_seg[yp+pad-fov_pixels:yp+pad+fov_pixels,xp+pad-fov_pixels:xp+pad+fov_pixels][selseg] = i+1#seg 
@@ -178,7 +229,7 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,p
             xoff = 0#xpos-xp
             yoff = 0#ypos-yp
             sp = imflux*conv_prof_fixed
-            fov_pixels = pad-1
+            fov_pixels = (pad-1) // 2
             full_image[yp+pad-fov_pixels:yp+pad+fov_pixels,xp+pad-fov_pixels:xp+pad+fov_pixels] += sp
 
     # rotates roman.direct.data["REF"] and seg map for stars; galaxy seg map rotated later
@@ -294,7 +345,7 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,p
         xoff = 0#xpos-xp
         yoff = 0#ypos-yp
         sp = imflux*conv_prof
-        fov_pixels = pad-1
+        fov_pixels = (pad-1) // 2
         full_image[yp+pad-fov_pixels:yp+pad+fov_pixels,xp+pad-fov_pixels:xp+pad+fov_pixels] += sp
         masked_im = full_image[pad:-pad,pad:-pad]
         #copying from process_ref_file in grizli
