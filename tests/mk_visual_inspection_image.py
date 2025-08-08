@@ -8,7 +8,8 @@ import numpy as np
 import os
 import subprocess
 
-outdir = os.path.join(os.getenv("SCRATCH"), "tests") # ! This needs to be changed before adding to git
+# outdir = os.path.join(os.getenv("SCRATCH"), "tests")
+outdir = os.path.join("/global/cfs/cdirs/m4943/grismsim/visual_inspection")
 
 try:
     tag = subprocess.check_output("git describe --tags --exact-match", shell=True).decode().strip()
@@ -20,7 +21,6 @@ except subprocess.CalledProcessError as e:
     else:
         raise e
 
-# baseline_tag = "v0.0.2"
 tel_ra = 10
 tel_dec = 10
 tel_pa = 60
@@ -78,7 +78,7 @@ for aperture in apertureList:
     
 fig, ax = plt.subplots()
 fig.set_size_inches(10,10)
-ax.set_title("Detectors vs Stars")
+ax.set_title(f"{tag}: Detectors vs Stars")
 ax.scatter(star_ra, star_dec, color='r', label="Stars", s=0.25)
 ax.scatter(gal_ra, gal_dec, color='g', label="Gals", s=0.25)
 
