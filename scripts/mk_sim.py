@@ -63,7 +63,7 @@ else:
               "dec": [0, sim_config["dither"]["dec"]]}
 
 if isinstance(sim_config["tel_ra"], (float, int)):
-    tel_ra = [sim_config["tel_ra"]]
+    tel_ra = [sim_config["tel_ra"] + dith for dith in dither["ra"]]
 else:
     start = sim_config["tel_ra"]["start"]
     step = sim_config["tel_ra"]["step"]
@@ -71,7 +71,7 @@ else:
     tel_ra = [start + (step * ii) + dith for ii in range(0, num) for dith in dither["ra"]]
 
 if isinstance(sim_config["tel_dec"], (float, int)):
-    tel_dec = [sim_config["tel_dec"]]
+    tel_dec = [sim_config["tel_dec"] + dith for dith in dither["dec"]]
 else:
     start = sim_config["tel_dec"]["start"]
     step = sim_config["tel_dec"]["step"]
