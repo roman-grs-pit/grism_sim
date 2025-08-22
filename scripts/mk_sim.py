@@ -151,5 +151,9 @@ with Pool(processes=80) as pool:
     res = pool.map(dosim, all_sims)
 
 if sim_config["combine_sims"]:
+
     grouped = ciu.group_grism_files(outdir, all_sims)
-    ciu.combined_sims(outdir, grouped, seed)
+    ciu.combine_sims(outdir, grouped, seed)
+    
+    grouped = ciu.group_ref_files(outdir, all_sims)
+    ciu.combine_refs(outdir, grouped)
