@@ -147,6 +147,18 @@ def dosim(d):
     mk_grism(output_dir = outdir,
              **d)
 
+save_sim_args_list = []
+for d in all_sims:
+    info = d.copy()
+    info.pop("star_input", None)
+    info.pop("gal_input", None)
+    save_sim_args_list.append(info)
+
+with open(os.path.join(outdir, "sim_args.yaml"), "w") as f:
+    yaml.dump(save_sim_args_list, f)
+
+del save_sim_args_list
+
 with Pool(processes=80) as pool:
     res = pool.map(dosim, all_sims)
 
