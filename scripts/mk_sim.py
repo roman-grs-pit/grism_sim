@@ -63,7 +63,7 @@ else:
               "dec": [0, sim_config["dither"]["dec"]]}
 
 if isinstance(sim_config["tel_ra"], (float, int)):
-    tel_ra = [sim_config["tel_ra"]]
+    tel_ra = [sim_config["tel_ra"] + dith for dith in dither["ra"]]
 else:
     start = sim_config["tel_ra"]["start"]
     step = sim_config["tel_ra"]["step"]
@@ -71,7 +71,7 @@ else:
     tel_ra = [start + (step * ii) + dith for ii in range(0, num) for dith in dither["ra"]]
 
 if isinstance(sim_config["tel_dec"], (float, int)):
-    tel_dec = [sim_config["tel_dec"]]
+    tel_dec = [sim_config["tel_dec"] + dith for dith in dither["dec"]]
 else:
     start = sim_config["tel_dec"]["start"]
     step = sim_config["tel_dec"]["step"]
@@ -147,9 +147,25 @@ def dosim(d):
     mk_grism(output_dir = outdir,
              **d)
 
+save_sim_args_list = []
+for d in all_sims:
+    info = d.copy()
+    info.pop("star_input", None)
+    info.pop("gal_input", None)
+    save_sim_args_list.append(info)
+
+with open(os.path.join(outdir, "sim_args.yaml"), "w") as f:
+    yaml.dump(save_sim_args_list, f)
+
+del save_sim_args_list
+
 with Pool(processes=80) as pool:
     res = pool.map(dosim, all_sims)
 
 if sim_config["combine_sims"]:
+
     grouped = ciu.group_grism_files(outdir, all_sims)
-    ciu.combined_sims(outdir, grouped, seed)
+    ciu.combine_sims(outdir, grouped, seed)
+    
+    grouped = ciu.group_ref_files(outdir, all_sims)
+    ciu.combine_refs(outdir, grouped)

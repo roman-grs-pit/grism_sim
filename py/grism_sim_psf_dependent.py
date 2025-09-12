@@ -31,6 +31,20 @@ if psf_grid_data_write is None:
     print("psf_grid_data_write variable has not been set. This will cause problems if psf_grid fits do not already exist.")
 
 def try_wait_loop(func, *args, max_attempts=3, wait=5, **kwargs):
+    """
+    Attempt to call func using args and kwargs. Upon a fail, wait som time and try
+    again. Upon {max_attempts} number of fails, raise Exception. Used when reading
+    files recently written on NERSC.
+
+    Parameters
+    ----------
+    func: callable
+        Function or other callable to attempt calling
+    max_attempts: int, optional
+        Maximum number of attempts before raising exception. default: 3
+    wait: float, optional
+        Seconds to wait upon failure before retrying. default: 5
+    """
     attempt = 0
     while attempt < max_attempts:
         try:
@@ -47,10 +61,70 @@ def try_wait_loop(func, *args, max_attempts=3, wait=5, **kwargs):
     
     return res
 
-def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,extra_grism_name='',extra_ref_name='',
-             github_dir=github_dir_env,gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,
-             mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/', check_psf=False, 
-             conv_gal=True, use_tqdm=False, seed=3, **kwargs):
+def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,
+             extra_grism_name='',extra_ref_name='',github_dir=github_dir_env,
+             gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,
+             mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/',
+             check_psf=False,conv_gal=True,use_tqdm=False,seed=3,**kwargs):
+    """
+    Simulated Roman WFI Grism Image of objects in catalogs. Includes background and
+    shot noise. Final fits file contains: PrimaryHDU, SCI, ERR, DQ, Noiseless Model
+
+    Process Outline:
+    Load default config -> Prepare WCS -> Save empty fits files for Grizli --
+    --> Cut catalogs to on-detector objects -> Instantiate grizli.GrismFLT --
+    --> Loop over wavelength bins: ( Load PSF Grid -> Loop over objects: (
+    Compute monochromatic direct image -> Write direct & segmentation image
+    to GrismFLT -> Cut out relevant part of spectrum -> Compute piece of sim ))
+    --> Save full simulation result and first computed monochromatic direct
+    image as fits files.
+
+    Parameters
+    ----------
+    tel_ra: float
+        WFI Center pointing, RA in degrees
+    tel_dec: float
+        WFI Center pointing, Dec in degrees
+    tel_pa: float
+        WFI Center pointing, PA in degrees
+    det_num: int
+        Detector Number
+    star_input: astropy.table.Table
+        Table with columns 'RA', 'DEC', 'magnitude', 'star_template_index'
+    gal_input: astropy.table.Table
+        Table with columns 
+    output_dir: str
+        Path to directory for output
+    extra_grism_name: str, optional
+        Appended to grism fits file
+    extra_ref_name: str, optional
+        Appended to empty reference fits file
+    github_dir: str, optional
+        Path to directory containing all GRS PIT Github repos. 
+        default: reads environment variable
+    gal_mag_col: str, optional
+        Name of the column in the gal_input catalog wih magnitude information
+        default: "mag_F158_Av1.6523"
+    dogal: str, optional
+        Simulates galaxies if set to 'y'
+        default: 'y'
+    magmax: float, optional
+        Brightest galaxy magnitude to simulate; Fainter galaxies are skipped
+        default: 25
+    mockdir: float, optional
+        Directory containing galaxy SEDs. default: NERSC path
+    check_psf: bool, optional
+        Determines whether to check psf_grid fits files match given kwargs. 
+        default: False
+    conv_gal: bool, optional
+        Determines whether to calculate and convolve PSF with galaxies.
+        default: True
+    use_tqdm: bool, optional
+        Show tqdm progress bar during simulation. Reccomend set to False when 
+        running sbatch jobs on NERSC. default: False
+    seed: int, optional
+        Numpy rng seed for noise. default: 3
+    """
     #tel_ra,tel_dec correspond to the coordinates (in degrees) of the middle of the field (not the detector center)
     #tel_pa is the position angle (in degrees), relative to lines of ra=constant; note, requires +60 on tel_pa for wfi_sky_pointing
     #det_num is an integer corresponding to the detector number
@@ -76,7 +150,7 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,extra
             grizli_conf[arg] = kwargs.pop(arg)
     
     det = "SCA{:02}".format(det_num)
-    half_fov_pixels = int(grizli_conf["fov_pixels"] / 2) # size of star thumbnails
+    half_fov_pixels = grizli_conf["fov_pixels"] // 2 # size of star thumbnails
     thresh = grizli_conf["thresh"] # threshhold pixel value to be dispersed
     size = grizli_conf["size"][det] + 364
     gpad = grizli_conf["pad"] # padding added in order to catch off-detector objects that disperse on-detector
@@ -159,6 +233,7 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,extra
     #print(stars00['Xpos'].shape)
     stars['Xpos'] = star_xy[0][sel_ondet]
     stars['Ypos'] = star_xy[1][sel_ondet]
+    nstar = len(stars)
     ngal = 0
 
     # Cuts galaxy catalog and preps convolution info?
@@ -283,7 +358,7 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,extra
             ytrue = ypos - gpad
 
             start = time.time()
-            sp = iu.star_postage_grid(psf_grid,mag,xtrue,ytrue,half_fov_pixels=half_fov_pixels) # PSF from grid
+            sp = iu.psf_grid_evaluate_fast(psf_grid,xtrue,ytrue,mag) # PSF from grid
 
             end = time.time()
             timings["star_PSF_eval"] += (end - start)
@@ -334,7 +409,7 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,extra
             if start_wave != minlam:
                 # Adjust start_wave to include overlap region
                 start_wave_index = np.searchsorted(spec.wave, start_wave, side="left")
-                start_index_w_overlap = start_wave_index - int(spectrum_overlap * 0.5)
+                start_index_w_overlap = start_wave_index - (spectrum_overlap // 2)
                 sel = wave >= spec.wave[start_index_w_overlap]
             else:
                 # Set lower limit on sel_wave
@@ -343,7 +418,7 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,extra
             if end_wave != maxlam:
                 # Adjust end_wave to include overlap region
                 end_wave_index = np.searchsorted(spec.wave, end_wave, side="right")
-                end_index_w_overlap = end_wave_index + int(spectrum_overlap * 0.5 - 1) 
+                end_index_w_overlap = end_wave_index + ((spectrum_overlap // 2) - 1) 
                 sel &= wave < spec.wave[end_index_w_overlap]
             else:
                 # Set upper limit on sel_wave
@@ -405,13 +480,13 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,extra
                 # convolve direct thumbnail with psf
                 imflux = iu.mag2flux(mag)#imflux = row['flux']
                 if conv_gal:
-                    gal_psf = iu.gal_postage_grid(psf_grid,xtrue,ytrue,half_fov_pixels=half_fov_pixels)
+                    gal_psf = iu.psf_grid_evaluate_fast(psf_grid,xtrue,ytrue,None)
                     
                     end = time.time()
                     timings["gal_PSF_eval"] += (end - start)
 
                     start = time.time()
-                    conv_prof = signal.convolve2d(gal_psf,testprof,mode='same') 
+                    conv_prof = signal.fftconvolve(gal_psf,testprof,mode='same') 
                     sp = imflux*conv_prof
 
                     end = time.time()
@@ -468,7 +543,7 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,extra
                 if start_wave != minlam:
                     # Adjust start_wave to include overlap region
                     start_wave_index = np.searchsorted(spec.wave, start_wave, side="left")
-                    start_index_w_overlap = start_wave_index - int(spectrum_overlap * 0.5)
+                    start_index_w_overlap = start_wave_index - (spectrum_overlap // 2)
                     sel_wave = spec.wave >= spec.wave[start_index_w_overlap]
                 else:
                     # Set lower limit on sel_wave
@@ -477,7 +552,7 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,extra
                 if end_wave != maxlam:
                     # Adjust end_wave to include overlap region
                     end_wave_index = np.searchsorted(spec.wave, end_wave, side="right")
-                    end_index_w_overlap = end_wave_index + int(spectrum_overlap * 0.5 - 1) 
+                    end_index_w_overlap = end_wave_index + ((spectrum_overlap // 2) - 1) 
                     sel_wave &= spec.wave < spec.wave[end_index_w_overlap]
                 else:
                     # Set upper limit on sel_wave
@@ -545,8 +620,6 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,extra
     hdu_list.close()
     print('wrote to '+out_fn)
 
-    timings["checkpoint_8"] = time.time()
-    print("checkpoint_8")
     # * save monochromatic direct image
     hdu_list = fits.open(empty_direct_fits_out_nopad)
     if gpad != 0:
@@ -558,11 +631,33 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,extra
     hdu_list.close()
     print('wrote to '+out_fn)
 
+    timings["checkpoint_8"] = time.time()
+    print("checkpoint_8")
+
     # * print timings
     for key in timings.keys():
         if "checkpoint" not in key:
             print(key, timings[key])
     for ii in range(0, 8):
         print(f"Split {ii}-{ii+1}: ", (timings[f"checkpoint_{ii+1}"] - timings[f"checkpoint_{ii}"]))
+
+    timing_file = os.path.join(output_dir, f"timings_for_{fn_root_grism}.txt")
+    with open(timing_file, "w") as f:
+        f.write(f"NStars: {nstar} \n")
+        f.write(f"NGals: {ngal} \n")
+        f.write(f"NPSFs: {npsfs} \n")
+        f.write(f"\nCheckpoints\n")
+        f.write(f"-----------\n")
+        for ii in range(0, 8):
+            s = f"Split {ii}-{ii+1}: {timings[f'checkpoint_{ii+1}'] - timings[f'checkpoint_{ii}']} \n"
+            f.write(s)  
+        
+        f.write(f"\nFor-loops (6-7 split)\n")
+        f.write(f"---------------------\n")
+        f.write("")
+        for key in timings.keys():
+            if "checkpoint" not in key:
+                s = f"{key} - {timings[key]} \n"
+                f.write(s)
 
     return full_model_noiseless

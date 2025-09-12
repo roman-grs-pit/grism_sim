@@ -7,11 +7,95 @@ except:
     import webbpsf as stpsf
 
 wfi = stpsf.roman.WFI()
-wfi.filter = "GRISM0" #eventually make this detector specific
+wfi.filter = "GRISM0" 
+
+# We are currently using an older version of photutils where a few of the PSF grid functions 
+# are not available.
+# We therefore duplicate these here. At some point we should see if we can update photutils
+# and deprecate these.
+def _v2_find_bounding_points(psf_grid, x, y):
+    """Find the grid points surrounding the point (x0, y0)."""
+    xgrid = psf_grid._xgrid
+    ygrid = psf_grid._ygrid
+
+    # Find the indices of the grid points that bound (x, y)
+    x_idx = np.searchsorted(xgrid, x) - 1
+    y_idx = np.searchsorted(ygrid, y) - 1
+
+    # Ensure indices are within bounds
+    x_idx = np.clip(x_idx, 0, len(xgrid) - 2)
+    y_idx = np.clip(y_idx, 0, len(ygrid) - 2)
+
+    # Find the four bounding points in the sorted grid
+    # (x0, y0) is the lower-left corner of the grid
+    # (x1, y1) is the upper-right corner of the grid
+    x0, x1 = xgrid[x_idx], xgrid[x_idx + 1]
+    y0, y1 = ygrid[y_idx], ygrid[y_idx + 1]
+
+    # Find the indices of these points in grid_xypos
+    xcoords, ycoords = psf_grid.grid_xypos.T
+    lower_left = np.where((xcoords == x0) & (ycoords == y0))[0][0]
+    lower_right = np.where((xcoords == x1) & (ycoords == y0))[0][0]
+    upper_left = np.where((xcoords == x0) & (ycoords == y1))[0][0]
+    upper_right = np.where((xcoords == x1) & (ycoords == y1))[0][0]
+
+    grid_idx = np.array((lower_left, lower_right, upper_left, upper_right))
+    grid_xy = np.array((x0, x1, y0, y1))
+
+    return grid_idx, grid_xy
+
+def _v2_calc_bilinear_weights(x, y, grid_xy):
+    """Calculate the bilinear interpolation weights for the point (x, y) based on the bounding grid points."""
+    x0, x1, y0, y1 = grid_xy
+
+    # Calculate the weights
+    w_x0 = (x1 - x) / (x1 - x0)
+    w_x1 = (x - x0) / (x1 - x0)
+    w_y0 = (y1 - y) / (y1 - y0)
+    w_y1 = (y - y0) / (y1 - y0)
+
+    # Combine the weights
+    weights = np.array([w_x0 * w_y0, w_x1 * w_y0, w_x0 * w_y1, w_x1 * w_y1])
+
+    return weights
+
+# My original plan was to rewrite the gridded PSF class, but instead I think I can just hack 
+# this on, using the built in terms. If that is too slow, we can always try other approaches.
+def psf_grid_evaluate_fast(psf_grid, x0, y0, mag):
+    """
+    Evaluate the PSF at a specific point using a given GriddedPSFModel object.
+    returns psf thumbnail: numpy.ndarray
+
+    Parameters
+    ----------
+    psf_grid: GriddedPSFModel
+        Photutils PSF Grid
+    detx: float
+        x postition of the object on the detector in science coordinates.
+    dety: float
+        y postition of the object on the detector in science coordinates.
+    mag: float, None
+        Magnitude of the object. Converted to flux using mag2flux. If set to None,
+        returned thumbnail will be normalized to sum to 1 (useful for galaxies).
+    """
+    if mag is not None:
+        flux = mag2flux(mag)
+    else:
+        flux = 1
+    
+    grid_idx, grid_xy = _v2_find_bounding_points(psf_grid, x0, y0)
+    weights = _v2_calc_bilinear_weights(x0, y0, grid_xy)
+
+    result = 0
+    for idx, weight in zip(grid_idx, weights, strict=True):
+        result += weight * psf_grid.data[idx]
+
+    return result * flux
 
 def star_postage_grid(psf_grid, mag, detx=2044, dety=2044, half_fov_pixels=182):
     """
     Evaluate the PSF at a specific point using a given GriddedPSFModel object.
+    returns psf thumbnail: 2d numpy.ndarray w/size half_fov_pixels*2 in both dim
 
     Parameters
     ----------
@@ -39,6 +123,7 @@ def star_postage_grid(psf_grid, mag, detx=2044, dety=2044, half_fov_pixels=182):
 def gal_postage_grid(psf_grid, detx=2044, dety=2044, half_fov_pixels=364, flux=1):
     """
     Evaluate the PSF at a specific point using a given GriddedPSFModel object.
+    returns psf thumbnail: 2d numpy.ndarray w/size half_fov_pixels*2 in both dim
 
     Parameters
     ----------
@@ -62,6 +147,7 @@ def gal_postage_grid(psf_grid, detx=2044, dety=2044, half_fov_pixels=364, flux=1
 def create_psf_grid(wavelength=1.5e-6, fov_pixels=364, det="SCA01"):
     """
     Generate new monochromatic GriddedPSFModel object.
+    returns psf_grid: GriddedPSFModel
 
     Parameters
     ----------
@@ -81,6 +167,7 @@ def create_psf_grid(wavelength=1.5e-6, fov_pixels=364, det="SCA01"):
 def mag2flux(mag,zp=26.5):
     """
     Convert magnitude to flux.
+    returns flux observed by detector: float
 
     Parameters
     ----------
@@ -98,6 +185,7 @@ def star_postage(mag,detx=2044,dety=2044,offx=0,offy=0,wavelength = 1.5e-6, fov_
     """
     Evaluate monochromatic PSF for a given detector at a given detector coordinate. 
     Total thumbnail size in pixel is fov_pixels * oversample.
+    returns psf thumbnail: 2d numpy.ndarray w/size fov_pixels*oversample in both dim
 
     Parameters
     ----------
@@ -140,6 +228,7 @@ def get_psf(wavelength = 1.5e-6, fov_pixels=364, oversample=4,detx=2044,dety=204
     Total thumbnail size in pixel is fov_pixels * oversample. This function does
     not support source offset and returns PSF normalized such that it sums to 1, 
     i.e. not adjusted to an object's flux.
+    returns psf thumbnail: 2d numpy.ndarray w/size fov_pixels*oversample in both dim
 
     Parameters
     ----------
@@ -169,12 +258,13 @@ def get_psf(wavelength = 1.5e-6, fov_pixels=364, oversample=4,detx=2044,dety=204
 def star_postage_inpsf(mag,psf):
     """
     Adjust a fiducial PSF to given magnitude.
+    returns psf thumbnail: numpy.ndarray
 
     Parameters
     ----------
     mag: float
         Magnitude of the object. Converted to flux using mag2flux.
-    psf: numpy.ndarray
+    psf: HDU
         PSF thumbnail, normalized to sum to 1.
     """
     flux = mag2flux(mag)
@@ -233,6 +323,7 @@ def add_wcs(hdu,crval1, crval2, crpix2=2044,crpix1=2044, cdelt1=0.11, cdelt2=0.1
                 crota2=0.0,naxis1=4088,naxis2=4088):
     """
     Adds WCS information to given HDU header
+    returns hdu.header: astropy.io.fits.header.Header
 
     Parameters
     ----------
