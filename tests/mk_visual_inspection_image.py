@@ -11,6 +11,7 @@ import subprocess
 # outdir = os.path.join(os.getenv("SCRATCH"), "tests")
 outdir = os.path.join("/global/cfs/cdirs/m4943/grismsim/visual_inspection")
 
+os.chdir(os.path.join(os.getenv("github_dir"), "grism_sim"))
 tag = subprocess.check_output("git describe --tags", shell=True).decode().strip()
 
 tel_ra = 10
