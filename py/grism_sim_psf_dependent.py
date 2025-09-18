@@ -65,7 +65,7 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,
              extra_grism_name='',extra_ref_name='',github_dir=github_dir_env,
              gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,
              mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/',
-             check_psf=False,conv_gal=True,use_tqdm=False,seed=3,**kwargs):
+             check_psf=False,conv_gal=True,use_tqdm=False,**kwargs):
     """
     Simulated Roman WFI Grism Image of objects in catalogs. Includes background and
     shot noise. Final fits file contains: PrimaryHDU, SCI, ERR, DQ, Noiseless Model
@@ -197,7 +197,7 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,
     phdu.header["EXPTIME"] = grizli_conf["DIREXPTIME"] # direct exptime
     shp = full_model_noiseless.shape
     phdu.header = iu.add_wcs(phdu,ra, dec, crpix2=shp[1]/2,crpix1=shp[0]/2,
-                             crota2=tel_pa,naxis1=shp[0],naxis2=shp[1])
+                             crota2=tel_pa,naxis1=shp[0],naxis2=shp[1]) # ! Add wfi_cen ra & dec
 
     err = np.random.poisson(10,full_model_noiseless.shape)*0.001 #np.zeros(full_model_noiseless.shape)
     ihdu = fits.ImageHDU(data=full_model_noiseless,name='SCI',header=phdu.header)
@@ -589,12 +589,12 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,
     # * save grism model image + noise
     true_noiseless = np.copy(full_model_noiseless)
     # Noise
-    rng = np.random.default_rng(seed=seed)
+    rng = np.random.default_rng(seed=grizli_conf["seed"]) # ! Put seed in default yaml
     sel = full_model_noiseless < 0
     full_model_noiseless[sel] = 0
     full_model_poisson = rng.poisson(full_model_noiseless * EXPTIME) / EXPTIME
     
-    bg_noise = background + roman.grism.data["SCI"]
+    bg_noise = background + roman.grism.data["SCI"] # ! Turn off bkg noise
     full_model_final = full_model_poisson + bg_noise
 
     # Final model rotation

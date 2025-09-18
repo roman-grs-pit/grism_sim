@@ -5,6 +5,7 @@ grism_background: 0.57 # counts/sec
 GEXPTIME: 189.75 # sec; Grism exptime
 DIREXPTIME: 107.25 # sec; Direct exptime
 thresh: 0.01
+seed: 3 # numpy rng seed for noise
 
 pad: 1000 # Pad chosen to be >one full trace dx (make sure also includes size of object)
 # The pad does not seem to have a large impact on compute times.
