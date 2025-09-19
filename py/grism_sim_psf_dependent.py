@@ -195,9 +195,12 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,
     phdu.header["INSTRUME"] = 'ROMAN   '
     phdu.header["FILTER"] = "f140w"
     phdu.header["EXPTIME"] = grizli_conf["DIREXPTIME"] # direct exptime
+    phdu.header["tel_ra"] = tel_ra
+    phdu.header["tel_dec"] = tel_dec
+    phdu.header["tel_pa"] = tel_pa
     shp = full_model_noiseless.shape
     phdu.header = iu.add_wcs(phdu,ra, dec, crpix2=shp[1]/2,crpix1=shp[0]/2,
-                             crota2=tel_pa,naxis1=shp[0],naxis2=shp[1]) # ! Add wfi_cen ra & dec
+                             crota2=tel_pa,naxis1=shp[0],naxis2=shp[1])
 
     err = np.random.poisson(10,full_model_noiseless.shape)*0.001 #np.zeros(full_model_noiseless.shape)
     ihdu = fits.ImageHDU(data=full_model_noiseless,name='SCI',header=phdu.header)
@@ -589,13 +592,13 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,
     # * save grism model image + noise
     true_noiseless = np.copy(full_model_noiseless)
     # Noise
-    rng = np.random.default_rng(seed=grizli_conf["seed"]) # ! Put seed in default yaml
+    rng = np.random.default_rng(seed=grizli_conf["seed"])
     sel = full_model_noiseless < 0
     full_model_noiseless[sel] = 0
-    full_model_poisson = rng.poisson(full_model_noiseless * EXPTIME) / EXPTIME
+    full_model_poisson = rng.poisson(full_model_noiseless * EXPTIME)
     
-    bg_noise = background + roman.grism.data["SCI"] # ! Turn off bkg noise
-    full_model_final = full_model_poisson + bg_noise
+    bg_noise = background + roman.grism.data["SCI"]
+    full_model_final = (full_model_poisson / EXPTIME) + bg_noise
 
     # Final model rotation
     full_model_final = np.rot90(full_model_final, k=1)
@@ -609,11 +612,15 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,
         #hdu_list.append(fits.ImageHDU(data=roman.grism.data['SCI'][gpad:-gpad, gpad:-gpad],name='ERR'))
         hdu_list['ERR'].data = np.sqrt((full_model_noiseless[gpad:-gpad, gpad:-gpad] + background) * EXPTIME) / EXPTIME
         hdu_list["SCI"].data = full_model_final[gpad:-gpad, gpad:-gpad]
+        hdu_list["ISIM_READY"] = full_model_poisson[gpad:-gpad, gpad:-gpad]
+        hdu_list["ISIM_ERR"] = np.sqrt(full_model_noiseless[gpad:-gpad, gpad:-gpad] * EXPTIME)
     else:
         hdu_list.append(fits.ImageHDU(data=true_noiseless, name='MODEL'))
         #hdu_list.append(fits.ImageHDU(data=roman.grism.data['SCI']),name='ERR')
         hdu_list['ERR'].data = np.sqrt((full_model_noiseless + background) * EXPTIME) / EXPTIME
         hdu_list["SCI"].data = full_model_final
+        hdu_list["ISIM_READY"] = full_model_poisson
+        hdu_list["ISIM_ERR"] = np.sqrt(full_model_noiseless * EXPTIME)
     
     out_fn = os.path.join(output_dir, fn_root_grism+'.fits')
     hdu_list.writeto(out_fn, overwrite=True)
