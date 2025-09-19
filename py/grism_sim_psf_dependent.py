@@ -612,14 +612,14 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,
         #hdu_list.append(fits.ImageHDU(data=roman.grism.data['SCI'][gpad:-gpad, gpad:-gpad],name='ERR'))
         hdu_list['ERR'].data = np.sqrt((full_model_noiseless[gpad:-gpad, gpad:-gpad] + background) * EXPTIME) / EXPTIME
         hdu_list["SCI"].data = full_model_final[gpad:-gpad, gpad:-gpad]
-        hdu_list["ISIM_READY"] = full_model_poisson[gpad:-gpad, gpad:-gpad]
+        hdu_list["ISIM_SCI"] = full_model_poisson[gpad:-gpad, gpad:-gpad]
         hdu_list["ISIM_ERR"] = np.sqrt(full_model_noiseless[gpad:-gpad, gpad:-gpad] * EXPTIME)
     else:
         hdu_list.append(fits.ImageHDU(data=true_noiseless, name='MODEL'))
         #hdu_list.append(fits.ImageHDU(data=roman.grism.data['SCI']),name='ERR')
         hdu_list['ERR'].data = np.sqrt((full_model_noiseless + background) * EXPTIME) / EXPTIME
         hdu_list["SCI"].data = full_model_final
-        hdu_list["ISIM_READY"] = full_model_poisson
+        hdu_list["ISIM_SCI"] = full_model_poisson
         hdu_list["ISIM_ERR"] = np.sqrt(full_model_noiseless * EXPTIME)
     
     out_fn = os.path.join(output_dir, fn_root_grism+'.fits')
