@@ -319,7 +319,7 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,
 
         start = time.time()
         # * read in/check psf_grid
-        psf_filename = f"wfi_grism0_fovp{half_fov_pixels * 2}_wave{start_wave:.0f}_{det}.fits".lower() # {instrument}_{filter}_{fovp}_wave{wavelength}_{det}.fits
+        psf_filename = f"wfi_grism1_fovp{half_fov_pixels * 2}_wave{start_wave:.0f}_wfi{det_num:02}.fits".lower() # {instrument}_{filter}_{fovp}_wave{wavelength}_wfi{det_num}.fits
         try:
             psf_grid = pgu.load_psf_grid(psf_filename)
         except OSError as e:
