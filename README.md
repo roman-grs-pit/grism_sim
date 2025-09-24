@@ -85,13 +85,13 @@ galaxies: path_to_gal_cat or null
 combine_sims: bool
 seed: int
 
-# tel_ra/tel_dec can be either int/float or dict with start, step, and num
-tel_ra: int, float
-tel_dec:
+# wfi_cen_ra/wfi_cen_dec can be either int/float or dict with start, step, and num
+wfi_cen_ra: int, float
+wfi_cen_dec:
   start: int, float
   step: int, float
   num: int
-tel_pa:
+wfi_cen_pa:
   start: int, float
   rolls: list
 dither: null, int, float or (ra, dec as shown below)
