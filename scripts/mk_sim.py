@@ -16,8 +16,17 @@ for var in ["stars", "galaxies"]:
     msg = f"{var} not found in sim_config. If not simulating stars or galaxies, set to null."
     assert var in sim_config, msg
 
-for var in ["tel_ra", "tel_dec"]:
-    assert var in sim_config, f"{var} not found in sim_config"
+for var, backwards_compatible_var in [("wfi_cen_ra", "tel_ra"), ("wfi_cen_dec", "tel_dec")]:
+    try:
+        assert var in sim_config, f"{var} not found in sim_config"
+
+    # Check old variable names for backwards compatibility
+    except AssertionError as e:
+        if backwards_compatible_var in sim_config:
+            sim_config[var] = sim_config[backwards_compatible_var]
+        else:
+            raise e
+    
     if isinstance(sim_config[var], dict):
         for dvar in ["start", "step", "num"]:
             msg = f"{dvar} not found in {var} definition in sim_config"
@@ -26,13 +35,15 @@ for var in ["tel_ra", "tel_dec"]:
         msg = f"{var} must be float, int, or dict containing start, step, and num keys"
         assert isinstance(sim_config[var], (float, int)), msg
     
+    
+    
 assert "seed" in sim_config, "Random seed not found in sim_config. Please define rng seed in sim_config.yaml"
 
-msg = "tel_pa must be dictionary with start value and rolls list"
-assert isinstance(sim_config["tel_pa"], dict), msg
-assert "rolls" in sim_config["tel_pa"], msg
-assert "start" in sim_config["tel_pa"], msg
-assert isinstance(sim_config["tel_pa"]["rolls"], list), msg
+msg = "wfi_cen_pa must be dictionary with start value and rolls list"
+assert isinstance(sim_config["wfi_cen_pa"], dict), msg
+assert "rolls" in sim_config["wfi_cen_pa"], msg
+assert "start" in sim_config["wfi_cen_pa"], msg
+assert isinstance(sim_config["wfi_cen_pa"]["rolls"], list), msg
 
 msg = "dither must be null, int, float, or dictionary with ra & dec keys"
 assert "dither" in sim_config, msg
@@ -62,36 +73,36 @@ else:
     dither = {"ra": [0, sim_config["dither"]["ra"]],
               "dec": [0, sim_config["dither"]["dec"]]}
 
-if isinstance(sim_config["tel_ra"], (float, int)):
-    tel_ra = [sim_config["tel_ra"] + dith for dith in dither["ra"]]
+if isinstance(sim_config["wfi_cen_ra"], (float, int)):
+    wfi_cen_ra = [sim_config["wfi_cen_ra"] + dith for dith in dither["ra"]]
 else:
-    start = sim_config["tel_ra"]["start"]
-    step = sim_config["tel_ra"]["step"]
-    num = sim_config["tel_ra"]["num"]
-    tel_ra = [start + (step * ii) + dith for ii in range(0, num) for dith in dither["ra"]]
+    start = sim_config["wfi_cen_ra"]["start"]
+    step = sim_config["wfi_cen_ra"]["step"]
+    num = sim_config["wfi_cen_ra"]["num"]
+    wfi_cen_ra = [start + (step * ii) + dith for ii in range(0, num) for dith in dither["ra"]]
 
-if isinstance(sim_config["tel_dec"], (float, int)):
-    tel_dec = [sim_config["tel_dec"] + dith for dith in dither["dec"]]
+if isinstance(sim_config["wfi_cen_dec"], (float, int)):
+    wfi_cen_dec = [sim_config["wfi_cen_dec"] + dith for dith in dither["dec"]]
 else:
-    start = sim_config["tel_dec"]["start"]
-    step = sim_config["tel_dec"]["step"]
-    num = sim_config["tel_dec"]["num"]
-    tel_dec = [start + (step * ii) + dith for ii in range(0, num) for dith in dither["dec"]]
+    start = sim_config["wfi_cen_dec"]["start"]
+    step = sim_config["wfi_cen_dec"]["step"]
+    num = sim_config["wfi_cen_dec"]["num"]
+    wfi_cen_dec = [start + (step * ii) + dith for ii in range(0, num) for dith in dither["dec"]]
 
-if isinstance(sim_config["tel_pa"], (float, int)):
-    tel_pa = [sim_config["tel_pa"]]
+if isinstance(sim_config["wfi_cen_pa"], (float, int)):
+    wfi_cen_pa = [sim_config["wfi_cen_pa"]]
 else:
-    start = sim_config["tel_pa"]["start"]
-    rolls = sim_config["tel_pa"]["rolls"]
-    tel_pa = [start + roll for roll in rolls]
+    start = sim_config["wfi_cen_pa"]["start"]
+    rolls = sim_config["wfi_cen_pa"]["rolls"]
+    wfi_cen_pa = [start + roll for roll in rolls]
 
 pointings = []
-for ra in tel_ra:
-    for dec in tel_dec:
-        for pa in tel_pa:
-            pointings.append({"tel_ra": ra, 
-                              "tel_dec": dec, 
-                              "tel_pa": pa})
+for ra in wfi_cen_ra:
+    for dec in wfi_cen_dec:
+        for pa in wfi_cen_pa:
+            pointings.append({"wfi_cen_ra": ra, 
+                              "wfi_cen_dec": dec, 
+                              "wfi_cen_pa": pa})
 
 sims = []
 seed = sim_config["seed"]

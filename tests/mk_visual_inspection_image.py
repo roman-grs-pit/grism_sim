@@ -14,9 +14,9 @@ outdir = os.path.join("/global/cfs/cdirs/m4943/grismsim/visual_inspection")
 os.chdir(os.path.join(os.getenv("github_dir"), "grism_sim"))
 tag = subprocess.check_output("git describe --tags", shell=True).decode().strip()
 
-tel_ra = 10
-tel_dec = 10
-tel_pa = 60
+wfi_cen_ra = 10
+wfi_cen_dec = 10
+wfi_cen_pa = 60
 det_num = [1, 18]
 star_input = None
 gal_input = None
@@ -25,7 +25,7 @@ extra_grism_name = "_" + tag
 extra_ref_name = "_" + tag
 
 star_ra, star_dec = np.mgrid[0:360:1, 0:360:1]
-app_ra, app_dec = np.mgrid[tel_ra-0.5:tel_ra+0.5:0.125, tel_dec-0.5:tel_dec+0.5:0.125]
+app_ra, app_dec = np.mgrid[wfi_cen_ra-0.5:wfi_cen_ra+0.5:0.125, wfi_cen_dec-0.5:wfi_cen_dec+0.5:0.125]
 
 star_ra = np.append(star_ra.ravel(), app_ra)
 star_dec = np.append(star_dec.ravel(), app_dec)
@@ -39,7 +39,7 @@ star_input = Table([idx, star_temp_idx, mag, star_ra, star_dec],
                    names = ["index", "star_template_index", "magnitude", "RA", "DEC"])
 
 gal_ra, gal_dec = np.mgrid[0.5:360:1, 0.5:360:1]
-app_ra, app_dec = np.mgrid[tel_ra-0.5+0.0625:tel_ra+0.5+0.0625:0.125, tel_dec-0.5+0.0625:tel_dec+0.5+0.0625:0.125]
+app_ra, app_dec = np.mgrid[wfi_cen_ra-0.5+0.0625:wfi_cen_ra+0.5+0.0625:0.125, wfi_cen_dec-0.5+0.0625:wfi_cen_dec+0.5+0.0625:0.125]
 
 gal_ra = np.append(gal_ra.ravel(), app_ra)
 gal_dec = np.append(gal_dec.ravel(), app_dec)
@@ -58,7 +58,7 @@ siaf = pysiaf.Siaf("roman")
 wfi_cen = siaf["WFI_CEN"]
 v2, v3 = wfi_cen.V2Ref, wfi_cen.V3Ref
 
-attmat = pysiaf.utils.rotations.attitude_matrix(v2, v3, tel_ra, tel_dec, tel_pa)
+attmat = pysiaf.utils.rotations.attitude_matrix(v2, v3, wfi_cen_ra, wfi_cen_dec, wfi_cen_pa)
 
 apertureList = [siaf[f"WFI{det_num:02}_FULL"] for det_num in range(1, 19)]
 
@@ -84,11 +84,11 @@ for ii, (apername, coords) in enumerate(verticies):
 
 ax.legend()
 
-ax.set_xlim(tel_ra - 1, tel_ra + 1)
-ax.set_ylim(tel_ra - 1, tel_ra + 1)
+ax.set_xlim(wfi_cen_ra - 1, wfi_cen_ra + 1)
+ax.set_ylim(wfi_cen_ra - 1, wfi_cen_ra + 1)
 
 plt.savefig(os.path.join(outdir, f"{tag}_footprint.png"), bbox_inches="tight")
 
 for det_num in range(1, 19):
-    mk_grism(tel_ra, tel_dec, tel_pa, det_num, star_input, gal_input, outdir, 
+    mk_grism(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det_num, star_input, gal_input, outdir, 
              extra_grism_name=extra_grism_name, extra_ref_name=extra_ref_name)

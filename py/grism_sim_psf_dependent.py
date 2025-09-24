@@ -61,7 +61,7 @@ def try_wait_loop(func, *args, max_attempts=3, wait=5, **kwargs):
     
     return res
 
-def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,
+def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,output_dir,
              extra_grism_name='',extra_ref_name='',github_dir=github_dir_env,
              gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,
              mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/',
@@ -81,11 +81,11 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,
 
     Parameters
     ----------
-    tel_ra: float
+    wfi_cen_ra: float
         WFI Center pointing, RA in degrees
-    tel_dec: float
+    wfi_cen_dec: float
         WFI Center pointing, Dec in degrees
-    tel_pa: float
+    wfi_cen_pa: float
         WFI Center pointing, PA in degrees
     det_num: int
         Detector Number
@@ -125,8 +125,8 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,
     seed: int, optional
         Numpy rng seed for noise. default: 3
     """
-    #tel_ra,tel_dec correspond to the coordinates (in degrees) of the middle of the field (not the detector center)
-    #tel_pa is the position angle (in degrees), relative to lines of ra=constant; note, requires +60 on tel_pa for wfi_sky_pointing
+    #wfi_cen_ra,wfi_cen_dec correspond to the coordinates (in degrees) of the middle of the field (not the detector center)
+    #wfi_cen_pa is the position angle (in degrees), relative to lines of ra=constant; note, requires +60 on wfi_cen_pa for wfi_sky_pointing
     #det_num is an integer corresponding to the detector number
     #star_input is a table or array with columns 'RA', 'DEC', 'magnitude', 'star_template_index'
     #gal_input is a table or array with columns...
@@ -175,7 +175,7 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,
     v2ref = siaf["WFI_CEN"].V2Ref
     v3ref = siaf["WFI_CEN"].V3Ref
 
-    attmat = pysiaf.utils.rotations.attitude_matrix(v2ref, v3ref, tel_ra, tel_dec, tel_pa) # pysiaf tel_pa is 60 more than image_utils tel_pa (i.e. siaf_pa = iu_pa + 60)
+    attmat = pysiaf.utils.rotations.attitude_matrix(v2ref, v3ref, wfi_cen_ra, wfi_cen_dec, wfi_cen_pa) # pysiaf wfi_cen_pa is 60 more than image_utils wfi_cen_pa (i.e. siaf_pa = iu_pa + 60)
 
     wfi_siaf.set_attitude_matrix(attmat)
     ra, dec = wfi_siaf.det_to_sky(2043, 2043) # I believe pysiaf uses 0-index for origin pixel; thus, center pix is 2043 not 2044
@@ -187,7 +187,7 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,
     full_model_noiseless = np.zeros((tot_im_size, tot_im_size))
     full_ref = np.zeros((tot_im_size, tot_im_size))
 
-    fn_root = 'refimage_ra%s_dec%s_pa%s_det%s' % (tel_ra,tel_dec,tel_pa,det)
+    fn_root = 'refimage_ra%s_dec%s_pa%s_det%s' % (wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det)
     fn_root += extra_ref_name
     empty_direct_fits_out_nopad = os.path.join(output_dir,fn_root+'_nopad.fits')
 
@@ -195,12 +195,12 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,
     phdu.header["INSTRUME"] = 'ROMAN   '
     phdu.header["FILTER"] = "f140w"
     phdu.header["EXPTIME"] = grizli_conf["DIREXPTIME"] # direct exptime
-    phdu.header["tel_ra"] = tel_ra
-    phdu.header["tel_dec"] = tel_dec
-    phdu.header["tel_pa"] = tel_pa
+    phdu.header["WFICENRA"] = (wfi_cen_ra, "WFI Center RA")
+    phdu.header["WFICENDEC"] = (wfi_cen_dec, "WFI Center Declination")
+    phdu.header["WFICENPA"] = (wfi_cen_pa, "WFI Center PA")
     shp = full_model_noiseless.shape
     phdu.header = iu.add_wcs(phdu,ra, dec, crpix2=shp[1]/2,crpix1=shp[0]/2,
-                             crota2=tel_pa,naxis1=shp[0],naxis2=shp[1])
+                             crota2=wfi_cen_pa,naxis1=shp[0],naxis2=shp[1])
 
     err = np.random.poisson(10,full_model_noiseless.shape)*0.001 #np.zeros(full_model_noiseless.shape)
     ihdu = fits.ImageHDU(data=full_model_noiseless,name='SCI',header=phdu.header)
@@ -210,10 +210,10 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,
     hdul.writeto(empty_direct_fits_out_nopad, overwrite=True)
 
     # Save empty grism fits
-    fn_root_grism = 'grism_ra%s_dec%s_pa%s_det%s' % (tel_ra,tel_dec,tel_pa,det)
+    fn_root_grism = 'grism_ra%s_dec%s_pa%s_det%s' % (wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det)
     fn_root_grism += extra_grism_name 
     empty_grism = os.path.join(output_dir, 'empty_'+fn_root_grism+'.fits')
-    h, _ = grizli.fake_image.roman_header(ra=ra, dec=dec, pa_aper=tel_pa, naxis=(4088,4088))
+    h, _ = grizli.fake_image.roman_header(ra=ra, dec=dec, pa_aper=wfi_cen_pa, naxis=(4088,4088))
     grizli.fake_image.make_fake_image(h, output=empty_grism, exptime=EXPTIME, nexp=NEXP, background=background)
     file = try_wait_loop(fits.open, empty_grism)
     file[1].header["CONFFILE"] = os.path.join(github_dir, "grism_sim/data", conf)
@@ -613,14 +613,12 @@ def mk_grism(tel_ra,tel_dec,tel_pa,det_num,star_input,gal_input,output_dir,
         hdu_list['ERR'].data = np.sqrt((full_model_noiseless[gpad:-gpad, gpad:-gpad] + background) * EXPTIME) / EXPTIME
         hdu_list["SCI"].data = full_model_final[gpad:-gpad, gpad:-gpad]
         hdu_list["ISIM_SCI"] = full_model_poisson[gpad:-gpad, gpad:-gpad]
-        hdu_list["ISIM_ERR"] = np.sqrt(full_model_noiseless[gpad:-gpad, gpad:-gpad] * EXPTIME)
     else:
         hdu_list.append(fits.ImageHDU(data=true_noiseless, name='MODEL'))
         #hdu_list.append(fits.ImageHDU(data=roman.grism.data['SCI']),name='ERR')
         hdu_list['ERR'].data = np.sqrt((full_model_noiseless + background) * EXPTIME) / EXPTIME
         hdu_list["SCI"].data = full_model_final
         hdu_list["ISIM_SCI"] = full_model_poisson
-        hdu_list["ISIM_ERR"] = np.sqrt(full_model_noiseless * EXPTIME)
     
     out_fn = os.path.join(output_dir, fn_root_grism+'.fits')
     hdu_list.writeto(out_fn, overwrite=True)
