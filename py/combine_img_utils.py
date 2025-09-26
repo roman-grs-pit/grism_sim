@@ -13,12 +13,12 @@ def group_grism_files(outdir, all_sim_params):
     outdir: str
         Directory containing files to be grouped.
     all_sim_params: list of dictionaries
-        list of dictionaries containing "tel_ra", "tel_dec", "tel_pa", and 
+        list of dictionaries containing "wfi_cen_ra", "wfi_cen_dec", "wfi_cen_pa", and 
         "det_num" if simulation run to be grouped.
     """
     bases = set()
     for sim in all_sim_params:
-        base = f"grism_ra{sim["tel_ra"]}_dec{sim["tel_dec"]}_pa{sim["tel_pa"]}_detSCA{sim["det_num"]:02}"
+        base = f"grism_ra{sim["wfi_cen_ra"]}_dec{sim["wfi_cen_dec"]}_pa{sim["wfi_cen_pa"]}_detSCA{sim["det_num"]:02}"
         bases.add(base)
 
     grouped = defaultdict(list)
@@ -79,12 +79,12 @@ def group_ref_files(outdir, all_sim_params):
     outdir: str
         Directory containing files to be grouped.
     all_sim_params: list of dictionaries
-        list of dictionaries containing "tel_ra", "tel_dec", "tel_pa", and 
+        list of dictionaries containing "wfi_cen_ra", "wfi_cen_dec", "wfi_cen_pa", and 
         "det_num" if simulation run to be grouped.
     """
     bases = set()
     for sim in all_sim_params:
-        base = f"refimage_ra{sim["tel_ra"]}_dec{sim["tel_dec"]}_pa{sim["tel_pa"]}_detSCA{sim["det_num"]:02}"
+        base = f"refimage_ra{sim["wfi_cen_ra"]}_dec{sim["wfi_cen_dec"]}_pa{sim["wfi_cen_pa"]}_detSCA{sim["det_num"]:02}"
         bases.add(base)
 
     grouped = defaultdict(list)
