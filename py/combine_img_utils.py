@@ -49,6 +49,7 @@ def combine_sims(outdir, grouped, seed):
     for base, group in grouped.items():
         hdul = fits.open(group[0])
         sci = hdul["SCI"].data
+        isim_sci = hdul["ISIM_SCI"].data
         noiseless_model_0 = hdul["MODEL"].data
         noiseless_model_gather = noiseless_model_0.copy()
         EXPTIME = hdul[0].header["EXPTIME"]
@@ -60,11 +61,13 @@ def combine_sims(outdir, grouped, seed):
                 sel = noiseless_model < 0
                 noiseless_model[sel] = 0
                 sci += rng.poisson(noiseless_model * EXPTIME) / EXPTIME
+                isim_sci += f["ISIM_SCI"].data
                 noiseless_model_gather += noiseless_model
             
         hdul["SCI"].data = sci
         hdul["ERR"].data = np.sqrt((noiseless_model_gather + bg) * EXPTIME) / EXPTIME
         hdul["MODEL"].data = noiseless_model_gather
+        hdul["ISIM_SCI"].data = isim_sci
         hdul.writeto(os.path.join(outdir, base + ".fits"), overwrite=True)
     
     return 0
@@ -90,7 +93,7 @@ def group_ref_files(outdir, all_sim_params):
     grouped = defaultdict(list)
     for f in os.listdir(outdir):
         for base in bases:
-            if f.startswith(base):
+            if f.startswith(base) and not f.endswith("nopad.fits"):
                 grouped[base].append(os.path.join(outdir, f))
             
     return grouped
