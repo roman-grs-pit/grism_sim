@@ -327,7 +327,7 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
             psf_grid = pgu.load_psf_grid(psf_filename)
         except OSError as e:
             print("creating new PSF Grid")
-            pgu.save_one_grid(det_num, start_wave, psf_grid_data_write, half_fov_pixels=half_fov_pixels, **kwargs)
+            pgu.save_one_grid(det_num, start_wave, psf_grid_data_write, fov_pixels=half_fov_pixels*2, **kwargs)
             psf_grid = try_wait_loop(pgu.load_psf_grid, psf_filename)
         
         if check_psf:
