@@ -110,7 +110,7 @@ names_of_sims: list (e.g. [1st_sim, 2nd_sim, …])
     fainter_than: int, float     # this is > mag
   key: val - kwargs (e.g. extra_grism_name, extra_ref_name, npsfs, …)
   confdir: str, null
-  confs:
+  conf:
     SCA01: str
 
 2nd_sim:

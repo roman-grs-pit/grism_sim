@@ -155,7 +155,7 @@ for pointing in pointings:
         })
 
 def dosim(d):
-    mk_grism(output_dir = outdir,
+    mk_grism(output_dir = outdir, use_tqdm=True,
              **d)
 
 save_sim_args_list = []
@@ -170,8 +170,9 @@ with open(os.path.join(outdir, "sim_args.yaml"), "w") as f:
 
 del save_sim_args_list
 
-with Pool(processes=80) as pool:
-    res = pool.map(dosim, all_sims)
+if __name__ == "__main__":
+    with Pool(processes=80) as pool:
+        res = pool.map(dosim, all_sims)
 
 if sim_config["combine_sims"]:
 
