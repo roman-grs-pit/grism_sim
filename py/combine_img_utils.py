@@ -29,7 +29,7 @@ def group_grism_files(outdir, all_sim_params):
             
     return grouped
 
-def combine_sims(outdir, grouped, seed):
+def combine_grism(outdir, grouped, seed):
     """
     Iterates through grouped fits files to combine partial simulations into full
     sims. Shot noise and ERR are recompouted as combinations occur.
@@ -98,7 +98,7 @@ def group_ref_files(outdir, all_sim_params):
             
     return grouped
 
-def combine_refs(outdir, grouped):
+def combine_ref(outdir, grouped):
     """
     Iterates through grouped fits files to combine partial reference images into
     full reference images.

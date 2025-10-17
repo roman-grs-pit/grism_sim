@@ -177,7 +177,7 @@ if __name__ == "__main__":
 if sim_config["combine_sims"]:
 
     grouped = ciu.group_grism_files(outdir, all_sims)
-    ciu.combine_sims(outdir, grouped, seed)
+    ciu.combine_grism(outdir, grouped, seed)
     
     grouped = ciu.group_ref_files(outdir, all_sims)
-    ciu.combine_refs(outdir, grouped)
+    ciu.combine_ref(outdir, grouped)
