@@ -1,2 +1,2 @@
 ..include:: ../../../README.md
-    :parser: mrst
+    :parser: myst
