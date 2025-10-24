@@ -628,7 +628,7 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     for key in timings.keys():
         if "checkpoint" not in key:
             print(key, timings[key])
-    for ii in range(0, 8):
+    for ii in range(0, checkpoint_counter):
         print(f"Split {ii}-{ii+1}: ", (timings[f"checkpoint_{ii+1}"] - timings[f"checkpoint_{ii}"]))
 
     timing_file = os.path.join(output_dir, f"timings_for_{fn_root_grism}.txt")
