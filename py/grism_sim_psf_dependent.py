@@ -189,6 +189,8 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     phdu.header["WFICENDEC"] = (wfi_cen_dec, "WFI Center Declination")
     phdu.header["WFICENPA"] = (wfi_cen_pa, "WFI Center PA")
     shp = full_model_noiseless.shape
+
+    ra, dec = iu.get_det_center(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det_num)
     phdu.header = iu.add_wcs(phdu,ra, dec, crpix2=shp[1]/2,crpix1=shp[0]/2,
                              crota2=wfi_cen_pa,naxis1=shp[0],naxis2=shp[1])
 
@@ -203,8 +205,6 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     fn_root_grism = 'grism_ra%s_dec%s_pa%s_det%s' % (wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det)
     fn_root_grism += extra_grism_name 
     empty_grism = os.path.join(output_dir, 'empty_'+fn_root_grism+'.fits')
-
-    ra, dec = iu.get_det_center(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det_num)
     h, _ = grizli.fake_image.roman_header(ra=ra, dec=dec, pa_aper=wfi_cen_pa, naxis=(4088,4088))
     grizli.fake_image.make_fake_image(h, output=empty_grism, exptime=EXPTIME, nexp=NEXP, background=background)
     file = try_wait_loop(fits.open, empty_grism)
