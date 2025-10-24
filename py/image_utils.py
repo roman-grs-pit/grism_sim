@@ -15,7 +15,7 @@ _DET_RA = None
 _DET_DEC = None
 
 def setup_pysiaf(wfi_cen_ra: float, wfi_cen_dec: float, wfi_cen_pa: float, det_num: int):
-    global _DET_RA, _DET_DEC
+    global _WFI_SIAF, _DET_RA, _DET_DEC
 
     siaf = pysiaf.Siaf("roman")
     wfi_siaf = siaf["WFI{:02}_FULL".format(det_num)]
