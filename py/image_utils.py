@@ -90,6 +90,9 @@ def trim_catalog(catalog, wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det_num, gpad, to
     object_xy_siaf = wfi_siaf.sky_to_sci(trimmed_catalog[ra_col], trimmed_catalog[dec_col])
     object_xy = (object_xy_siaf[0] + gpad, object_xy_siaf[1] + gpad)
     
+    trimmed_catalog.add_column(object_xy[0], name="det_x")
+    trimmed_catalog.add_column(object_xy[1], name="det_y")
+
     # mask off-detector objects
     sel_ondet = object_xy[0] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
     sel_ondet &= object_xy[0] < tot_im_size
