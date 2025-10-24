@@ -30,12 +30,10 @@ def setup_pysiaf(wfi_cen_ra: float, wfi_cen_dec: float, wfi_cen_pa: float, det_n
 
     return wfi_siaf
 
-
 def get_wfi_siaf(wfi_cen_ra: float, wfi_cen_dec: float, wfi_cen_pa: float, det_num: int):
 
-    if _WFI_SIAF is not None:
-        return _WFI_SIAF
-    _WFI_SIAF = setup_pysiaf(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det_num)
+    if _WFI_SIAF is None:
+        _WFI_SIAF = setup_pysiaf(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det_num)
 
     return _WFI_SIAF
 
