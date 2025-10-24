@@ -15,6 +15,7 @@ _DET_RA = None
 _DET_DEC = None
 
 def setup_pysiaf(wfi_cen_ra: float, wfi_cen_dec: float, wfi_cen_pa: float, det_num: int):
+    global _DET_RA, _DET_DEC
 
     siaf = pysiaf.Siaf("roman")
     wfi_siaf = siaf["WFI{:02}_FULL".format(det_num)]
@@ -26,18 +27,23 @@ def setup_pysiaf(wfi_cen_ra: float, wfi_cen_dec: float, wfi_cen_pa: float, det_n
     attmat = pysiaf.utils.rotations.attitude_matrix(v2ref, v3ref, wfi_cen_ra, wfi_cen_dec, wfi_cen_pa) # pysiaf wfi_cen_pa is 60 more than image_utils wfi_cen_pa (i.e. siaf_pa = iu_pa + 60)
 
     wfi_siaf.set_attitude_matrix(attmat)
+    
+    # cache as global variables
+    _WFI_SIAF = wfi_siaf
     _DET_RA, _DET_DEC = wfi_siaf.det_to_sky(2043, 2043) # I believe pysiaf uses 0-index for origin pixel; thus, center pix is 2043 not 2044
 
     return wfi_siaf
 
 def get_wfi_siaf(wfi_cen_ra: float, wfi_cen_dec: float, wfi_cen_pa: float, det_num: int):
+    global _WFI_SIAF
 
     if _WFI_SIAF is None:
-        _WFI_SIAF = setup_pysiaf(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det_num)
+        setup_pysiaf(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det_num)
 
     return _WFI_SIAF
 
 def get_det_center():
+    global _WFI_SIAF
 
     if _WFI_SIAF is not None:
         return _DET_RA, _DET_DEC
