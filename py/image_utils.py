@@ -1,5 +1,6 @@
 import numpy as np
 from astropy.io import fits
+import pysiaf
 
 try:
     import stpsf
@@ -8,6 +9,92 @@ except:
 
 wfi = stpsf.roman.WFI()
 wfi.filter = "GRISM0" 
+
+_WFI_SIAF = None
+_DET_RA = None
+_DET_DEC = None
+
+def setup_pysiaf(wfi_cen_ra: float, wfi_cen_dec: float, wfi_cen_pa: float, det_num: int):
+
+    siaf = pysiaf.Siaf("roman")
+    wfi_siaf = siaf["WFI{:02}_FULL".format(det_num)]
+    
+    # Use WFI_CEN for aiming
+    v2ref = siaf["WFI_CEN"].V2Ref
+    v3ref = siaf["WFI_CEN"].V3Ref
+
+    attmat = pysiaf.utils.rotations.attitude_matrix(v2ref, v3ref, wfi_cen_ra, wfi_cen_dec, wfi_cen_pa) # pysiaf wfi_cen_pa is 60 more than image_utils wfi_cen_pa (i.e. siaf_pa = iu_pa + 60)
+
+    wfi_siaf.set_attitude_matrix(attmat)
+    _DET_RA, _DET_DEC = wfi_siaf.det_to_sky(2043, 2043) # I believe pysiaf uses 0-index for origin pixel; thus, center pix is 2043 not 2044
+
+    return wfi_siaf
+
+
+def get_wfi_siaf(wfi_cen_ra: float, wfi_cen_dec: float, wfi_cen_pa: float, det_num: int):
+
+    if _WFI_SIAF is not None:
+        return _WFI_SIAF
+    _WFI_SIAF = setup_pysiaf(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det_num)
+
+    return _WFI_SIAF
+
+def get_det_center():
+
+    if _WFI_SIAF is not None:
+        return _DET_RA, _DET_DEC
+    raise Exception("PYSIAF must be setup first. Consider using setup_pysiaf() prior to get_det_center call.")
+
+def trim_catalog(catalog, wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det_num, gpad, tot_im_size,
+                 col_names: dict = {"RA": "RA", "DEC": "DEC"}, initial_cut=2):
+    """
+    Trim catalog to on-detector objects.
+
+    Parameters
+    ----------
+    catalog: astropy.table.Table
+        Table containing objects and characteristics
+    wfi_cen_(ra|dec|pa): float
+        WFI Center pointing, (RA|DEC|PA) in degrees
+    det_num: int
+        Detector Number
+    gpad: int
+        padding around detector
+    tot_im_size: int
+        total image size (detector + any/all padding)
+    col_names: dict; optional
+        Name of catalog columns containing RA & DEC info. Keys must be "RA" and
+        "DEC" with appropriate values. Default: {"RA": "RA", "DEC": "DEC"}
+    initial_cut: float, int; optional
+        Distance in degrees from detector center for initial cut. Default: 2
+    """
+
+    ra_col, dec_col = col_names["RA"], col_names["DEC"]
+
+    # make initial cut to avoid far off objects landing on the detector unexpectedly
+    initial_cut_mask = catalog[ra_col] > wfi_cen_ra - initial_cut
+    initial_cut_mask &= catalog[ra_col] < wfi_cen_ra + initial_cut
+    initial_cut_mask &= catalog[dec_col] > wfi_cen_dec - initial_cut
+    initial_cut_mask &= catalog[dec_col] < wfi_cen_dec + initial_cut
+
+    trimmed_catalog = catalog[initial_cut_mask]
+
+    # get/setup pysiaf
+    wfi_siaf = get_wfi_siaf(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det_num)
+
+    # find xy detector coordinates
+    object_xy_siaf = wfi_siaf.sky_to_sci(catalog[ra_col, dec_col])
+    object_xy = (object_xy_siaf[0] + gpad, object_xy_siaf[1] + gpad)
+    
+    # mask off-detector objects
+    sel_ondet = object_xy[0] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
+    sel_ondet &= object_xy[0] < tot_im_size
+    sel_ondet &= object_xy[1] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
+    sel_ondet &= object_xy[1] < tot_im_size
+
+    trimmed_catalog = trimmed_catalog[sel_ondet]
+
+    return trimmed_catalog
 
 # We are currently using an older version of photutils where a few of the PSF grid functions 
 # are not available.
