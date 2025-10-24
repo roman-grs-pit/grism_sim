@@ -332,8 +332,8 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
 
             # STAR DIRECT
             # direct read of characteristics
-            xpos = stars[jj]['Xpos']
-            ypos = stars[jj]['Ypos']
+            xpos = stars[jj]['det_x']
+            ypos = stars[jj]['det_y']
             mag = stars[jj]['magnitude']
 
             # cleaned up characteristisc
@@ -451,8 +451,8 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
 
                 # GAL DIRECT
                 # direct read of characteristics
-                xpos = row['Xpos']
-                ypos = row['Ypos']
+                xpos = row['det_x']
+                ypos = row['det_y']
                 mag = row['mag']
 
                 # cleaned up characteristisc
