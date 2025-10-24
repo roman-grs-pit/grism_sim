@@ -42,12 +42,13 @@ def get_wfi_siaf(wfi_cen_ra: float, wfi_cen_dec: float, wfi_cen_pa: float, det_n
 
     return _WFI_SIAF
 
-def get_det_center():
-    global _WFI_SIAF
+def get_det_center(wfi_cen_ra: float, wfi_cen_dec: float, wfi_cen_pa: float, det_num: int):
+    global _WFI_SIAF, _DET_RA, _DET_DEC
 
-    if _WFI_SIAF is not None:
-        return _DET_RA, _DET_DEC
-    raise Exception("PYSIAF must be setup first. Consider using setup_pysiaf() prior to get_det_center call.")
+    if _WFI_SIAF is None:
+        setup_pysiaf(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det_num)
+    
+    return _DET_RA, _DET_DEC
 
 def trim_catalog(catalog, wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det_num, gpad, tot_im_size,
                  col_names: dict = {"RA": "RA", "DEC": "DEC"}, initial_cut=2):
