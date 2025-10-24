@@ -87,7 +87,7 @@ def trim_catalog(catalog, wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det_num, gpad, to
     wfi_siaf = get_wfi_siaf(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det_num)
 
     # find xy detector coordinates
-    object_xy_siaf = wfi_siaf.sky_to_sci(catalog[ra_col, dec_col])
+    object_xy_siaf = wfi_siaf.sky_to_sci(trimmed_catalog[ra_col], trimmed_catalog[dec_col])
     object_xy = (object_xy_siaf[0] + gpad, object_xy_siaf[1] + gpad)
     
     # mask off-detector objects
