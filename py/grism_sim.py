@@ -18,7 +18,7 @@ import grizli.fake_image
 
 import pysiaf
 import image_utils as iu
-import psf_grid_utils as pgu
+
 
 import yaml
 
@@ -97,6 +97,7 @@ def mk_ref_and_grism(tel_ra,tel_dec,pa,det_num,star_input,gal_input,output_dir,p
     #gal_input is a table or array with columns...
     #output_dir is the directory for output
     #psf_cutout_size is the size in pixels used to determine the psf and then all of the image stamps that get added together
+    import psf_grid_utils as pgu #importing here because some functions don't need it
     det = "SCA{:02}".format(det_num)
     conf_file = os.path.join(github_dir, "grism_sim/data/grizli_config.yaml")
     with open(conf_file) as f:
