@@ -26,6 +26,36 @@ github_dir_env=os.getenv('github_dir')
 if github_dir_env is None:
     print('github_dir environment variable has not been set, will cause problems if not explicitly set in function calss')
 
+def get_trace(x,y,dx,beams,conf,ra=10,dec=0,pa=0,tempf='scratch',exptime=301,nexp=1,backgroud=0.5):
+    '''
+    Function to get the beam trace(s) that grizli is using; putting it here because the needed packages are already imported
+    x,y should be the direct pixel location
+    dx is an array or list of delta x from the direct location to evaluate
+    beams is the list of beams to evaluate (e.g., ['A','B','C']
+    conf is the full path to the configuration file to use
+    returns: a dictionary with dy,lambda (shift in y pixel and wavelength corresponding to x,y,dx, 
+    so the light at wavelength lambda incident on the detector with no filter at position x,y will 
+    show up at position x+dx,y+dy when the grism filter is used
+    '''
+    if tempf == 'scratch':
+        empty_grism = os.path.join(os.getenv('SCRATCH'), 'test.fits')
+    else:
+        empty_grism = tempf
+    h, wcs = grizli.fake_image.roman_header(ra=ra, dec=dec, pa_aper=pa, naxis=(4088,4088))
+    head = wcs.to_header()
+    grizli.fake_image.make_fake_image(h, output=empty_grism, exptime=301, nexp=1, background=.5)
+    file = fits.open(empty_grism)
+    file[1].header["CONFFILE"] = conf
+    file.writeto(empty_grism, overwrite=True)
+    file.close()
+    image = GrismFLT(grism_file=empty_grism)
+    out = {}
+    for beam in beams:
+        dy,lam = image.conf.get_beam_trace(x=x, y=y, dx=dx, beam=beam)
+        out[beam] = (dy,lam)
+    return out
+
+
 def try_wait_loop(func, *args, max_attempts=3, wait=5, **kwargs):
     """
     Attempt to call func using args and kwargs. Upon a fail, wait som time and try
