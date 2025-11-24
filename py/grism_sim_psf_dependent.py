@@ -589,8 +589,10 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
 
     timings["checkpoint_7"] = time.time()
     print("checkpoint_7")
-    # * save grism model image + noise
-    true_noiseless = np.copy(full_model_noiseless)
+
+    # Copy raw grizli output
+    MODEL_DATA = np.copy(full_model_noiseless)
+
     # Noise
     rng = np.random.default_rng(seed=grizli_conf["seed"])
     sel = full_model_noiseless < 0
@@ -598,27 +600,29 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     full_model_poisson = rng.poisson(full_model_noiseless * EXPTIME)
     
     bg_noise = background + roman.grism.data["SCI"]
-    full_model_final = (full_model_poisson / EXPTIME) + bg_noise
+    SCI_DATA = (full_model_poisson / EXPTIME) + bg_noise
 
     # Final model rotation
-    full_model_final = np.rot90(full_model_final, k=1)
-    full_model_noiseless = np.rot90(full_model_noiseless, k=1)
-    true_noiseless = np.rot90(true_noiseless, k=1)
+    SCI_DATA = np.rot90(SCI_DATA, k=1)
+    full_model_noiseless = np.rot90(full_model_noiseless, k=1) # ERR_DATA is set using this
+    # DQ_DATA is already set to zero
+    MODEL_DATA = np.rot90(MODEL_DATA, k=1)
+    ISIM_SCI_DATA = np.rot90(full_model_poisson, k=1)
 
     # Save model
     hdu_list = fits.open(empty_grism)
     if gpad != 0:
-        hdu_list.append(fits.ImageHDU(data=true_noiseless[gpad:-gpad, gpad:-gpad], name='MODEL'))
-        #hdu_list.append(fits.ImageHDU(data=roman.grism.data['SCI'][gpad:-gpad, gpad:-gpad],name='ERR'))
+        hdu_list["SCI"].data = SCI_DATA[gpad:-gpad, gpad:-gpad]
         hdu_list['ERR'].data = np.sqrt((full_model_noiseless[gpad:-gpad, gpad:-gpad] + background) * EXPTIME) / EXPTIME
-        hdu_list["SCI"].data = full_model_final[gpad:-gpad, gpad:-gpad]
-        hdu_list.append(fits.ImageHDU(data=full_model_poisson[gpad:-gpad, gpad:-gpad], name="ISIM_SCI"))
+        # hdu_list["DQ"] = 0 is already true and need not be set again
+        hdu_list.append(fits.ImageHDU(data=MODEL_DATA[gpad:-gpad, gpad:-gpad], name='MODEL'))
+        hdu_list.append(fits.ImageHDU(data=ISIM_SCI_DATA[gpad:-gpad, gpad:-gpad], name="ISIM_SCI"))
     else:
-        hdu_list.append(fits.ImageHDU(data=true_noiseless, name='MODEL'))
-        #hdu_list.append(fits.ImageHDU(data=roman.grism.data['SCI']),name='ERR')
+        hdu_list["SCI"].data = SCI_DATA
         hdu_list['ERR'].data = np.sqrt((full_model_noiseless + background) * EXPTIME) / EXPTIME
-        hdu_list["SCI"].data = full_model_final
-        hdu_list.append(fits.ImageHDU(data=full_model_poisson, name="ISIM_SCI"))
+        # hdu_list["DQ"] = 0 is already true and need not be set again
+        hdu_list.append(fits.ImageHDU(data=MODEL_DATA, name='MODEL'))
+        hdu_list.append(fits.ImageHDU(data=ISIM_SCI_DATA, name="ISIM_SCI"))
     
     out_fn = os.path.join(output_dir, fn_root_grism+'.fits')
     hdu_list.writeto(out_fn, overwrite=True)
