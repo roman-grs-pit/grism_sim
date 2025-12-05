@@ -9,16 +9,17 @@ fi
 for fn in "$1"/grism_*_detSCA??.fits;
 do
 
+  fn=$(basename "${fn}")
   fn_stripped=${fn%.*} # strip .fits from filename
 
-  det_num=${fn#*SCA} # strip anything preceding the detector number
+  det_num=${fn_stripped#*SCA} # strip anything preceding the detector number
   det_num=${det_num%[._]*} # strip anything after the detector number
 
-  ra=${fn#*ra} # extract ra from filename
-  ra=${ra%_*}
+  ra=${fn_stripped#*ra} # extract ra from filename
+  ra=${ra%%[^0-9.]*}
 
-  dec=${fn#*dec} # extract ra from filename
-  dec=${dec%_*}
+  dec=${fn_stripped#*dec} # extract ra from filename
+  dec=${dec%%[^0-9.]*}
 
   echo Processing "$fn" for detector SCA"$det_num"
 
