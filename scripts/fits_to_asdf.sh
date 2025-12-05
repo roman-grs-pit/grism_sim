@@ -25,14 +25,14 @@ do
   det_num=${det_num#0} # strip leading zeros if single digit detector number
 
   romanisim-make-image  --extra-counts "$fn" 5 \
-  --radec ra dec --date 2026-10-01T12:00:00.000 \
+  --radec "$ra" "$dec" --date 2026-10-01T12:00:00.000 \
   --sca "$det_num" --level 1 \
   --pretend-spectral True --nobj 0 \
   --bandpass F158 \
   "${fn_stripped}_l1.asdf"
 
   romanisim-make-image  --extra-counts "$fn" 5 \
-  --radec ra dec --date 2026-10-01T12:00:00.000 \
+  --radec "$ra" "$dec" --date 2026-10-01T12:00:00.000 \
   --sca "$det_num" --level 2 \
   --pretend-spectral True --nobj 0 \
   --bandpass F158 \
