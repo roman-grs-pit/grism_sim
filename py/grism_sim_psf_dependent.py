@@ -628,11 +628,18 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     checkpoint_counter += 1
 
     # * print timings
+    timing_statements = {"checkpoints": [], "other": []}
+
     for key in timings.keys():
         if "checkpoint" not in key:
-            print(key, timings[key])
-    for ii in range(0, checkpoint_counter):
-        print(f"Split {ii}-{ii+1}: ", (timings[f"checkpoint_{ii+1}"] - timings[f"checkpoint_{ii}"]))
+            statement = f"{key}: {timings[key]}"
+            timing_statements["other"].append(statement)
+            print(statement)
+
+    for ii in range(1, checkpoint_counter):
+        statement = f"Split {ii-1}-{ii}: ", (timings[f"checkpoint_{ii}"] - timings[f"checkpoint_{ii-1}"])
+        timing_statements["checkpoints"].append(statement)
+        print(statement)
 
     timing_file = os.path.join(output_dir, f"timings_for_{fn_root_grism}.txt")
     with open(timing_file, "w") as f:
@@ -641,16 +648,13 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
         f.write(f"NPSFs: {npsfs} \n")
         f.write(f"\nCheckpoints\n")
         f.write(f"-----------\n")
-        for ii in range(0, 8):
-            s = f"Split {ii}-{ii+1}: {timings[f'checkpoint_{ii+1}'] - timings[f'checkpoint_{ii}']} \n"
-            f.write(s)  
+        for statement in timing_statements["checkpoints"]:
+            f.write(f"{statement}\n")
         
         f.write(f"\nFor-loops (6-7 split)\n")
         f.write(f"---------------------\n")
         f.write("")
-        for key in timings.keys():
-            if "checkpoint" not in key:
-                s = f"{key} - {timings[key]} \n"
-                f.write(s)
+        for statement in timing_statements["other"]:
+            f.write(f"{statement}\n")
 
     return full_model_noiseless
