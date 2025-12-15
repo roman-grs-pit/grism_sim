@@ -133,12 +133,13 @@ for sim_name in sim_config["names_of_sims"]:
         catalogs["gal_input"] = galaxies[sel]
 
     scas = sim.pop("SCAs")
-    if scas=="all":
-        det_nums = list(range(1, 19))
-    elif isinstance(scas, int):
+    assert isinstance(scas, (int, list, tuple, str))
+    if isinstance(scas, int):
         det_nums = [scas]
-    else:
+    elif isinstance(scas, (list, tuple)):
         det_nums = [ii for ii in scas]
+    else:
+        det_nums = list(range(1, 19))
 
     for det_num in det_nums:
         sims.append({"seed": seed,
@@ -155,9 +156,9 @@ for pointing in pointings:
             **sim
         })
 
-def dosim(d):
+def dosim(dt):
     mk_grism(output_dir = outdir,
-             **d)
+             **dt)
 
 save_sim_args_list = []
 for d in all_sims:
