@@ -24,7 +24,7 @@ def group_grism_files(outdir, all_sim_params):
     grouped = defaultdict(list)
     for f in os.listdir(outdir):
         for base in bases:
-            if f.startswith(base):
+            if f.startswith(base) and f.endswith(".fits"):
                 grouped[base].append(os.path.join(outdir, f))
             
     return grouped
@@ -93,7 +93,7 @@ def group_ref_files(outdir, all_sim_params):
     grouped = defaultdict(list)
     for f in os.listdir(outdir):
         for base in bases:
-            if f.startswith(base) and not f.endswith("nopad.fits"):
+            if f.startswith(base) and f.endswith(".fits") and not f.endswith("nopad.fits"):
                 grouped[base].append(os.path.join(outdir, f))
             
     return grouped
