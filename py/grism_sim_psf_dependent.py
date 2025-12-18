@@ -212,6 +212,7 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     file[0].header["WFICENRA"] = (wfi_cen_ra, "WFI Center RA")
     file[0].header["WFICENDEC"] = (wfi_cen_dec, "WFI Center Declination")
     file[0].header["WFICENPA"] = (wfi_cen_pa, "WFI Center PA")
+    file[0].header["DETNUM"] = (det_num, "Detector number, integer value only")
     file.writeto(empty_grism, overwrite=True)
     file.close()
 
