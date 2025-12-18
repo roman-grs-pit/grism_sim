@@ -209,6 +209,9 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     grizli.fake_image.make_fake_image(h, output=empty_grism, exptime=EXPTIME, nexp=NEXP, background=background)
     file = try_wait_loop(fits.open, empty_grism)
     file[1].header["CONFFILE"] = os.path.join(github_dir, "grism_sim/data", conf)
+    file[0].header["WFICENRA"] = (wfi_cen_ra, "WFI Center RA")
+    file[0].header["WFICENDEC"] = (wfi_cen_dec, "WFI Center Declination")
+    file[0].header["WFICENPA"] = (wfi_cen_pa, "WFI Center PA")
     file.writeto(empty_grism, overwrite=True)
     file.close()
 
