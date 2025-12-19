@@ -589,7 +589,7 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     
     bg_noise = background + roman.grism.data["SCI"]
     SCI_DATA = (full_model_poisson / EXPTIME) + bg_noise
-    ISIM_SCI_DATA = full_model_noiseless
+    ISIM_SCI_DATA = full_model_noiseless.astype(int)
 
     # Save model
     hdu_list = fits.open(empty_grism)
