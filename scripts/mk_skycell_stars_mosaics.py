@@ -61,7 +61,7 @@ if __name__ == '__main__':
     skycell_data = Table.read(github_dir+'/grism_sim/data/skycells_subset.ecsv')
     inds = []
     for i in range(0,len(skycell_data)):
-        inds.append(skycell_data[i]['ra_center'],skycell_data[i]['dec_center'],output_dir+skycell_data[i]['name']+out_base_name)
+        inds.append([skycell_data[i]['ra_center'],skycell_data[i]['dec_center'],output_dir+skycell_data[i]['name']+out_base_name])
     with Pool(processes=nproc) as pool:
         res = pool.map(mkL3, inds)
     
