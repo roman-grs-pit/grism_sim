@@ -52,7 +52,7 @@ def mkL3(args):
 
     af = asdf.AsdfFile()
     af.tree = {'roman': im, 'romanisim': romanisimdict}
-    af.write_to(open(args.filename, 'wb'))
+    af.write_to(open(args[2], 'wb'))
 
 output_dir = '/global/cfs/cdirs/m4943/grismsim/skycell_mosaics/'
 out_base_name = '_stars.asdf'
