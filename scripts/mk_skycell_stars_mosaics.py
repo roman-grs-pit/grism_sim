@@ -32,7 +32,7 @@ def mkL3(args):
         (midpoint, midpoint), pixscale, center)
 
     metadata = deepcopy(parameters.default_mosaic_parameters_dictionary)
-    metadata['filename'] = os.path.basename(args[2]])
+    metadata['filename'] = os.path.basename(args[2])
 
     cat = ris.create_catalog(metadata=metadata, catalog_name=star_file,
                             bandpasses=['F158'], coord=center, radius=npix)
