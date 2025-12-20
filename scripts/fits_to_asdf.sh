@@ -44,7 +44,7 @@ do
   --nobj 0 \
   --stpsf \
   --level 2 \
-  l2fn
+  "$l2fn"
 
 done
 
