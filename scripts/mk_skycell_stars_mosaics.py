@@ -44,10 +44,11 @@ def mkL3(args):
 
     # Create metadata for simulation parameter
     #romanisimdict = deepcopy(vars(args))
+    romanisimdict = {}
     #if 'filename' in romanisimdict:
     #    romanisimdict['filename'] = str(romanisimdict['filename'])
-    #romanisimdict.update(**extras)
-    #romanisimdict['version'] = romanisim.__version__
+    romanisimdict.update(**extras)
+    romanisimdict['version'] = romanisim.__version__
 
     af = asdf.AsdfFile()
     af.tree = {'roman': im, 'romanisim': romanisimdict}
@@ -55,14 +56,14 @@ def mkL3(args):
 
 output_dir = '/global/cfs/cdirs/m4943/grismsim/skycell_mosaics/'
 out_base_name = '_stars.asdf'
-    
+nproc=20
 if __name__ == '__main__':
     from multiprocessing import Pool
     skycell_data = Table.read(github_dir+'/grism_sim/data/skycells_subset.ecsv')
     inds = []
     for i in range(0,len(skycell_data)):
         inds.append([skycell_data[i]['ra_center'],skycell_data[i]['dec_center'],output_dir+skycell_data[i]['name']+out_base_name])
-    #with Pool(processes=nproc) as pool:
-    with Pool() as pool:
+    with Pool(processes=nproc) as pool:
+    #with Pool() as pool:
         res = pool.map(mkL3, inds)
     
