@@ -48,7 +48,7 @@ def wrap_with_romanisim(outdir):
         args_list.append({"fn": fn, "outdir": outdir, "static_args": static_args})
 
     with Pool(processes=80) as pool:
-        pool.map(fits_to_asdf, args_list)
+        pool.starmap(fits_to_asdf, args_list)
 
 
 if __name__ == "__main__":
