@@ -6,10 +6,9 @@ import os
 from multiprocessing import Pool
 from astropy.io import fits
 
-
 def fits_to_asdf(fn, outdir, seed=42, static_args=None):
+
     with fits.open(fn) as f:
-        print(f["PRIMARY"].header)
         ra, dec = f[0].header["WFICENRA"], f[0].header["WFICENDEC"]
         pa = f[0].header["WFICENPA"]
         det_num = f[0].header["DETNUM"]
@@ -29,7 +28,13 @@ def fits_to_asdf(fn, outdir, seed=42, static_args=None):
 
     subprocess.call(["romanisim-make-image", cmd])
 
+def fits_to_asdf_wrapper(d):
+    fits_to_asdf(**d)
+
 def wrap_with_romanisim(outdir):
+    """
+    Converts grism simulation fits files to asdf files, with realistic noise added, using Roman I-Sim.
+    """
     file_glob = glob.glob(os.path.join(outdir, "grism_*_detSCA??.fits"))
 
     date = "--date 2026-01-01T12:00:00.000"
@@ -48,7 +53,7 @@ def wrap_with_romanisim(outdir):
         args_list.append({"fn": fn, "outdir": outdir, "static_args": static_args})
 
     with Pool(processes=80) as pool:
-        pool.starmap(fits_to_asdf, args_list)
+        pool.map(fits_to_asdf_wrapper, args_list)
 
 
 if __name__ == "__main__":
