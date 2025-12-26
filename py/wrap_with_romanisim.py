@@ -6,6 +6,29 @@ import os
 from multiprocessing import Pool
 from astropy.io import fits
 
+
+def fits_to_asdf(fn, outdir, seed=42, static_args=None):
+    with fits.open(fn) as f:
+        print(f["PRIMARY"].header)
+        ra, dec = f[0].header["WFICENRA"], f[0].header["WFICENDEC"]
+        pa = f[0].header["WFICENPA"]
+        det_num = f[0].header["DETNUM"]
+
+    out_fn = os.path.join(outdir, fn.strip(".fits") + "_l2.asdf")
+
+    cmd = [
+        out_fn,
+        f"--extra-counts {fn} 5",
+        f"--radec {str(ra)} {str(dec)} --roll {str(pa)}",
+        f"--sca {str(det_num)}",
+        f"--rng_seed {seed}",
+    ]
+
+    if static_args is not None:
+        cmd.append(*static_args)
+
+    subprocess.call(["romanisim-make-image", cmd])
+
 def wrap_with_romanisim(outdir):
     file_glob = glob.glob(os.path.join(outdir, "grism_*_detSCA??.fits"))
 
@@ -20,31 +43,17 @@ def wrap_with_romanisim(outdir):
         date, ma_table, bandpass, flags, nobj, level
     ]
 
-    seed = 42  # ! fix with standardize non-static seed when agreed upon
-
-    def fits_to_asdf(fn):
-        with fits.open(fn) as f:
-            print(f["PRIMARY"].header)
-            ra, dec = f[0].header["WFICENRA"], f[0].header["WFICENDEC"]
-            pa = f[0].header["WFICENPA"]
-            det_num = f[0].header["DETNUM"]
-
-        extra_counts = f"--extra-counts {fn} 5"
-        radec = f"--radec {str(ra)} {str(dec)} --roll {str(pa)}"
-        sca = f"--sca {str(det_num)}"
-        rng_seed = f"--rng_seed {seed}"
-
-        out_fn = os.path.join(outdir, fn.strip(".fits") + "_l2.asdf")
-
-        subprocess.call(["romanisim-make-image", out_fn, extra_counts, radec, sca, rng_seed, *static_args])
+    args_list = []
+    for fn in file_glob:
+        args_list.append({"fn": fn, "outdir": outdir, "static_args": static_args})
 
     with Pool(processes=80) as pool:
-        pool.map(fits_to_asdf, file_glob)
+        pool.map(fits_to_asdf, args_list)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--outdir", type=str, help="Output directory")
+    parser.add_argument("--outdir", type=str, required=True, help="Output directory")
 
     args = parser.parse_args()
 
