@@ -1,11 +1,11 @@
-from grism_sim_psf_dependent import mk_grism
+from grism_sim_psf_dependent import mk_grism, try_wait_loop
+from wrap_with_romanisim import wrap_with_romanisim
 from multiprocessing import Pool
 import combine_img_utils as ciu
 from astropy.table import Table
 import numpy as np
 import os, sys
 import yaml
-import time
 
 outdir = sys.argv[1]
 conf_file = os.path.join(outdir, "sim_config.yaml")
@@ -177,16 +177,11 @@ with Pool(processes=80) as pool:
 
 if sim_config["combine_sims"]:
 
-    # attempt to group the files 3 times
-    for _ in range(3):
-        grouped_grisms = ciu.group_grism_files(outdir, all_sims)
-        grouped_refs = ciu.group_ref_files(outdir, all_sims)
-
-        if grouped_grisms and grouped_refs:
-            break
-
-        # if files are not grouped, assume it's a NERSC timing issue; wait 5 secs and try again
-        time.sleep(5)
+    # group files; wrapped in try_wait_loop for NERSC timing/race issue
+    grouped_grisms = try_wait_loop(ciu.group_grism_files, (outdir, all_sims))
+    grouped_refs = try_wait_loop(ciu.group_ref_files, (outdir, all_sims))
 
     ciu.combine_sims(outdir, grouped_grisms, seed)
     ciu.combine_refs(outdir, grouped_refs)
+
+wrap_with_romanisim(outdir)
