@@ -178,8 +178,8 @@ with Pool(processes=80) as pool:
 if sim_config["combine_sims"]:
 
     # group files; wrapped in try_wait_loop for NERSC timing/race issue
-    grouped_grisms = try_wait_loop(ciu.group_grism_files, (outdir, all_sims))
-    grouped_refs = try_wait_loop(ciu.group_ref_files, (outdir, all_sims))
+    grouped_grisms = try_wait_loop(ciu.group_grism_files, outdir, all_sims)
+    grouped_refs = try_wait_loop(ciu.group_ref_files, outdir, all_sims)
 
     ciu.combine_sims(outdir, grouped_grisms, seed)
     ciu.combine_refs(outdir, grouped_refs)
