@@ -223,7 +223,7 @@ for fname in gal_fns:
         galt['Ypos'] = gal_xy[1]#[sel_ondet]
         #gals.rename_column(gal_mag_col, 'mag')
         sel_mag = galt['mag'] < magmax
-        ids = np.arange(0,len(mags))
+        ids = np.arange(0,len(galt))
         ids = ids[sel_ondet&sel_mag]
         gals = galt[sel_ondet&sel_mag]
         for i in tqdm.tqdm(range(0,len(gals))):
