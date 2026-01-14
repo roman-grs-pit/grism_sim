@@ -258,6 +258,6 @@ for fname in gal_fns:
             flux = total_flux(high_res_wavelengths, flux_unit='FLAM') #this gets flux interpolating for high res
             
             roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=True, store=False,is_cgs=True, spectrum_1d=[high_res_wavelengths.value, flux.value])
-            print(fname +' finished')
+        print(fname +' finished')
     else:
         print(fname+' failed to load')
