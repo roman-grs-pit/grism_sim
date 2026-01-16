@@ -1,7 +1,7 @@
 import subprocess
 import argparse
 import glob
-import os
+import os, sys
 
 from multiprocessing import Pool
 from astropy.io import fits
@@ -40,7 +40,10 @@ def fits_to_asdf(fn, outdir, seed=42, static_args=None):
     if static_args is not None:
         cmd.extend(static_args)
 
-    subprocess.call(["romanisim-make-image", *cmd])
+    romanisim_make_image = os.path.join(sys.executable, "../romanisim-make-image") # path to romanisim-make-image call
+    romanisim_make_image = os.path.abspath(romanisim_make_image) # clean up path to make it functional
+
+    subprocess.call([romanisim_make_image, *cmd])
 
 def fits_to_asdf_wrapper(d):
     fits_to_asdf(**d)
