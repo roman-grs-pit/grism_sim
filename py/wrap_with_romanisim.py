@@ -31,7 +31,7 @@ def fits_to_asdf(fn, outdir, seed=42, static_args=None):
 
     cmd = [
         out_fn,
-        "--extra-counts", f"{fn} 5",
+        "--extra-counts", fn, "5",
         "--radec", str(ra), str(dec),
         "--roll", str(pa),
         "--sca", str(det_num),
