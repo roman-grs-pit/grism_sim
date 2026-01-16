@@ -31,10 +31,11 @@ def fits_to_asdf(fn, outdir, seed=42, static_args=None):
 
     cmd = [
         out_fn,
-        f"--extra-counts {fn} 5",
-        f"--radec {str(ra)} {str(dec)} --roll {str(pa)}",
-        f"--sca {str(det_num)}",
-        f"--rng_seed {seed}",
+        "--extra-counts", f"{fn} 5",
+        "--radec", str(ra), str(dec),
+        "--roll", str(pa),
+        "--sca", str(det_num),
+        "--rng_seed", str(seed),
     ]
 
     if static_args is not None:
@@ -59,15 +60,15 @@ def wrap_with_romanisim(outdir):
     """
     file_glob = glob.glob(os.path.join(outdir, "grism_*_detSCA??.fits"))
 
-    date = "--date 2026-01-01T12:00:00.000"
-    ma_table = "--ma_table_number 1036"
-    bandpass = "--bandpass GRISM"
-    flags = "--usecrds --stpsf"
-    nobj = "--nobj 0"
-    level = "--level 2"
+    date = ["--date", "2026-01-01T12:00:00.000"]
+    ma_table = ["--ma_table_number", "1036"]
+    bandpass = ["--bandpass", "GRISM"]
+    flags = ["--usecrds", "--stpsf"]
+    nobj = ["--nobj", "0"]
+    level = ["--level", "2"]
 
     static_args = [
-        date, ma_table, bandpass, flags, nobj, level
+        *date, *ma_table, *bandpass, *flags, *nobj, *level
     ]
 
     args_list = []
