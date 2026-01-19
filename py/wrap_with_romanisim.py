@@ -81,7 +81,7 @@ def wrap_with_romanisim(outdir):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--outdir", type=str, required=True, help="Output directory")
+    parser.add_argument("outdir", type=str, help="Directory containing fits files to be converted")
 
     args = parser.parse_args()
 
