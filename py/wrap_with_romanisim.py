@@ -24,7 +24,7 @@ def fits_to_asdf(fn, outdir, seed=42, static_args=None):
 
     with fits.open(fn) as f:
         ra, dec = f[0].header["WFICENRA"], f[0].header["WFICENDEC"]
-        pa = f[0].header["WFICENPA"]
+        pa = f[0].header["WFICENPA"] - 60
         det_num = f[0].header["DETNUM"]
 
     out_fn = os.path.join(outdir, fn.strip(".fits") + "_l2.asdf")

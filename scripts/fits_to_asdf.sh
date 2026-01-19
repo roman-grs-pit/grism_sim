@@ -23,6 +23,7 @@ do
 
   pa=${fn_stripped#*pa} # extract pa from filename
   pa=${pa%%[^0-9.]*}
+  pa=$(echo $pa - 60 | bc)
 
   printf %"$(tput cols)"s | tr " " -
   echo Processing "$fn" for detector SCA"$det_num"
