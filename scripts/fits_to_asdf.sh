@@ -21,29 +21,32 @@ do
   dec=${fn_stripped#*dec} # extract ra from filename
   dec=${dec%%[^0-9.]*}
 
+  pa=${fn_stripped#*pa} # extract pa from filename
+  pa=${pa%%[^0-9.]*}
+  pa=$(echo $pa - 60 | bc)
+
+  printf %"$(tput cols)"s | tr " " -
   echo Processing "$fn" for detector SCA"$det_num"
 
   det_num=${det_num#0} # strip leading zeros if single digit detector number
+  l2fn="${fn_stripped}_l2.asdf"
 
-  romanisim-make-image  \
+  echo Generating "$l2fn"
+
+  romanisim-make-image \
   --extra-counts "$fn" 5 \
-  --radec "$ra" "$dec" \
+  --radec "$ra" "$dec" --roll "$pa" \
   --date 2026-01-01T12:00:00.000 \
-  --pretend-spectral GRISM \
+  --ma_table_number 1036 \
+  --bandpass GRISM \
   --sca "$det_num" \
-  --level 1 \
+  --rng_seed 42 \
+  --usecrds \
   --nobj 0 \
-  "${fn_stripped}_l1.asdf"
-
-  romanisim-make-image  --extra-counts "$fn" 5 \
-  --radec "$ra" "$dec" \
-  --date 2026-01-01T12:00:00.000 \
-  --pretend-spectral GRISM \
-  --sca "$det_num" \
+  --stpsf \
   --level 2 \
-  --nobj 0 \
-  "${fn_stripped}_l2.asdf"
-
-  # Inclusion of --bandpass GRISM arugment was casuing a KeyError
+  "$l2fn"
 
 done
+
+
