@@ -16,7 +16,6 @@ import pysynphot as S
 from grizli.model import GrismFLT
 import grizli.fake_image
 
-import pysiaf # use for WCS instead of iu functions
 import image_utils as iu
 import psf_grid_utils as pgu
 
@@ -136,9 +135,13 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     if gal_input is None:
         dogal = 'n'
 
+    checkpoint_counter = 0
+
     timings = {}
-    timings["checkpoint_0"] = time.time()
-    print("checkpoint_0")
+    timings[f"checkpoint_{checkpoint_counter}"] = time.time()
+    print(f"checkpoint_{checkpoint_counter}")
+    checkpoint_counter += 1
+
     # * Read config
     conf_file = os.path.join(github_dir, "grism_sim/data/grizli_config.yaml")
     with open(conf_file) as f:
@@ -165,23 +168,10 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     EXPTIME = grizli_conf["GEXPTIME"] 
     NEXP = 1     
 
-    timings["checkpoint_1"] = time.time()
-    print("checkpoint_1")
-    # * Setup WCS
-    siaf = pysiaf.Siaf("roman")
-    wfi_siaf = siaf["WFI{:02}_FULL".format(det_num)]
-    
-    # Use WFI_CEN for aiming
-    v2ref = siaf["WFI_CEN"].V2Ref
-    v3ref = siaf["WFI_CEN"].V3Ref
+    timings[f"checkpoint_{checkpoint_counter}"] = time.time()
+    print(f"checkpoint_{checkpoint_counter}")
+    checkpoint_counter += 1
 
-    attmat = pysiaf.utils.rotations.attitude_matrix(v2ref, v3ref, wfi_cen_ra, wfi_cen_dec, wfi_cen_pa) # pysiaf wfi_cen_pa is 60 more than image_utils wfi_cen_pa (i.e. siaf_pa = iu_pa + 60)
-
-    wfi_siaf.set_attitude_matrix(attmat)
-    ra, dec = wfi_siaf.det_to_sky(2043, 2043) # I believe pysiaf uses 0-index for origin pixel; thus, center pix is 2043 not 2044
-
-    timings["checkpoint_2"] = time.time()
-    print("checkpoint_2")
     # * Save helper empty fits files
     # Save an empty direct fits with appropriate header info and WCS
     full_model_noiseless = np.zeros((tot_im_size, tot_im_size))
@@ -199,6 +189,8 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     phdu.header["WFICENDEC"] = (wfi_cen_dec, "WFI Center Declination")
     phdu.header["WFICENPA"] = (wfi_cen_pa, "WFI Center PA")
     shp = full_model_noiseless.shape
+
+    ra, dec = iu.get_det_center(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det_num)
     phdu.header = iu.add_wcs(phdu,ra, dec, crpix2=shp[1]/2,crpix1=shp[0]/2,
                              crota2=wfi_cen_pa,naxis1=shp[0],naxis2=shp[1])
 
@@ -220,37 +212,20 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     file.writeto(empty_grism, overwrite=True)
     file.close()
 
-    timings["checkpoint_3"] = time.time()
-    print("checkpoint_3")
-    # * Use WCS to Prepare object Catalogs
-    star_xy_siaf = wfi_siaf.sky_to_sci(star_input["RA"], star_input["DEC"])
-    star_xy = (star_xy_siaf[0] + gpad, star_xy_siaf[1] + gpad)
-    
-    sel_ondet = star_xy[0] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
-    sel_ondet &= star_xy[0] < tot_im_size
-    sel_ondet &= star_xy[1] > 0#stars00['Xpos'] < 4088 + 2*( gpad) #we want everything within padded area around grism
-    sel_ondet &= star_xy[1] < tot_im_size
-    
-    print('cutting stars to be on detector + padded area')
-    stars = star_input[sel_ondet]
-    #print(stars00['Xpos'].shape)
-    stars['Xpos'] = star_xy[0][sel_ondet]
-    stars['Ypos'] = star_xy[1][sel_ondet]
+    timings[f"checkpoint_{checkpoint_counter}"] = time.time()
+    print(f"checkpoint_{checkpoint_counter}")
+    checkpoint_counter += 1
+
+    stars = iu.trim_catalog(star_input, wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, 
+                            det_num, gpad, tot_im_size)
     nstar = len(stars)
     ngal = 0
 
     # Cuts galaxy catalog and preps convolution info?
     if dogal == 'y':
-        gal_xy_siaf = wfi_siaf.sky_to_sci(gal_input["RA"], gal_input["DEC"])
-        gal_xy = (gal_xy_siaf[0] + gpad, gal_xy_siaf[1] + gpad)
-    
-        sel_ondet = gal_xy[0] > 0
-        sel_ondet &= gal_xy[0] < tot_im_size
-        sel_ondet &= gal_xy[1] > 0
-        sel_ondet &= gal_xy[1] < tot_im_size
-        gals = Table(gal_input[sel_ondet])
-        gals['Xpos'] = gal_xy[0][sel_ondet]
-        gals['Ypos'] = gal_xy[1][sel_ondet]
+        gals = iu.trim_catalog(gal_input, wfi_cen_ra, wfi_cen_dec, wfi_cen_pa,
+                               det_num, gpad, tot_im_size)
+
         gals.rename_column(gal_mag_col, 'mag')
         sel_mag = gals['mag'] < magmax
         gals = gals[sel_mag]
@@ -269,8 +244,10 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
         if not conv_gal:
             testprof = np.pad(testprof, 698, mode="constant", constant_values=0)
 
-    timings["checkpoint_4"] = time.time()
-    print("checkpoint_4")
+    timings[f"checkpoint_{checkpoint_counter}"] = time.time()
+    print(f"checkpoint_{checkpoint_counter}")
+    checkpoint_counter += 1
+
     # * Read bandpass file, and setup apodization
     df = Table.read(os.path.join(github_dir, 'grism_sim/data/wfirst_wfi_f158_001_syn.fits'), format='fits') #close to H-band
     bp = S.ArrayBandpass(df["WAVELENGTH"], df["THROUGHPUT"])
@@ -292,14 +269,19 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
 
     bins = np.linspace(minlam, maxlam, npsfs + 1)
 
-    timings["checkpoint_5"] = time.time()
-    print("checkpoint_5")
+    timings[f"checkpoint_{checkpoint_counter}"] = time.time()
+    print(f"checkpoint_{checkpoint_counter}")
+    checkpoint_counter += 1
+
     # * Instantiate Grizli GrismFLT
     roman = try_wait_loop(GrismFLT, grism_file=empty_grism,ref_file=empty_direct_fits_out_nopad, seg_file=None, pad=gpad)
     roman.seg = np.zeros((tot_im_size,tot_im_size), dtype=np.float32) #this segmentation map should have the area of the padded grism image, but not have the padding added because of the PSF size
 
-    print("checkpoint_6")
-    timings["checkpoint_6"] = time.time()
+    
+    timings[f"checkpoint_{checkpoint_counter}"] = time.time()
+    print(f"checkpoint_{checkpoint_counter}")
+    checkpoint_counter += 1
+
     timings["PSF_grid_load"] = 0
     timings["star_PSF_eval"] = 0
     timings["star_placement"] = 0
@@ -350,8 +332,8 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
 
             # STAR DIRECT
             # direct read of characteristics
-            xpos = stars[jj]['Xpos']
-            ypos = stars[jj]['Ypos']
+            xpos = stars[jj]['det_x']
+            ypos = stars[jj]['det_y']
             mag = stars[jj]['magnitude']
 
             # cleaned up characteristisc
@@ -469,8 +451,8 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
 
                 # GAL DIRECT
                 # direct read of characteristics
-                xpos = row['Xpos']
-                ypos = row['Ypos']
+                xpos = row['det_x']
+                ypos = row['det_y']
                 mag = row['mag']
 
                 # cleaned up characteristisc
@@ -587,10 +569,13 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
                 end = time.time()
                 timings["gal_grism_sim"] += (end - start)
 
-    timings["checkpoint_7"] = time.time()
-    print("checkpoint_7")
-    # * save grism model image + noise
-    true_noiseless = np.copy(full_model_noiseless)
+    timings[f"checkpoint_{checkpoint_counter}"] = time.time()
+    print(f"checkpoint_{checkpoint_counter}")
+    checkpoint_counter += 1
+
+    # Copy raw grizli output
+    MODEL_DATA = np.copy(full_model_noiseless)
+
     # Noise
     rng = np.random.default_rng(seed=grizli_conf["seed"])
     sel = full_model_noiseless < 0
@@ -598,27 +583,29 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     full_model_poisson = rng.poisson(full_model_noiseless * EXPTIME)
     
     bg_noise = background + roman.grism.data["SCI"]
-    full_model_final = (full_model_poisson / EXPTIME) + bg_noise
+    SCI_DATA = (full_model_poisson / EXPTIME) + bg_noise
 
     # Final model rotation
-    full_model_final = np.rot90(full_model_final, k=1)
-    full_model_noiseless = np.rot90(full_model_noiseless, k=1)
-    true_noiseless = np.rot90(true_noiseless, k=1)
+    SCI_DATA = np.rot90(SCI_DATA, k=1)
+    full_model_noiseless = np.rot90(full_model_noiseless, k=1) # ERR_DATA is set using this
+    # DQ_DATA is already set to zero
+    MODEL_DATA = np.rot90(MODEL_DATA, k=1)
+    ISIM_SCI_DATA = np.rot90(full_model_poisson, k=1)
 
     # Save model
     hdu_list = fits.open(empty_grism)
     if gpad != 0:
-        hdu_list.append(fits.ImageHDU(data=true_noiseless[gpad:-gpad, gpad:-gpad], name='MODEL'))
-        #hdu_list.append(fits.ImageHDU(data=roman.grism.data['SCI'][gpad:-gpad, gpad:-gpad],name='ERR'))
+        hdu_list["SCI"].data = SCI_DATA[gpad:-gpad, gpad:-gpad]
         hdu_list['ERR'].data = np.sqrt((full_model_noiseless[gpad:-gpad, gpad:-gpad] + background) * EXPTIME) / EXPTIME
-        hdu_list["SCI"].data = full_model_final[gpad:-gpad, gpad:-gpad]
-        hdu_list.append(fits.ImageHDU(data=full_model_poisson[gpad:-gpad, gpad:-gpad], name="ISIM_SCI"))
+        # hdu_list["DQ"] = 0 is already true and need not be set again
+        hdu_list.append(fits.ImageHDU(data=MODEL_DATA[gpad:-gpad, gpad:-gpad], name='MODEL'))
+        hdu_list.append(fits.ImageHDU(data=ISIM_SCI_DATA[gpad:-gpad, gpad:-gpad], name="ISIM_SCI"))
     else:
-        hdu_list.append(fits.ImageHDU(data=true_noiseless, name='MODEL'))
-        #hdu_list.append(fits.ImageHDU(data=roman.grism.data['SCI']),name='ERR')
+        hdu_list["SCI"].data = SCI_DATA
         hdu_list['ERR'].data = np.sqrt((full_model_noiseless + background) * EXPTIME) / EXPTIME
-        hdu_list["SCI"].data = full_model_final
-        hdu_list.append(fits.ImageHDU(data=full_model_poisson, name="ISIM_SCI"))
+        # hdu_list["DQ"] = 0 is already true and need not be set again
+        hdu_list.append(fits.ImageHDU(data=MODEL_DATA, name='MODEL'))
+        hdu_list.append(fits.ImageHDU(data=ISIM_SCI_DATA, name="ISIM_SCI"))
     
     out_fn = os.path.join(output_dir, fn_root_grism+'.fits')
     hdu_list.writeto(out_fn, overwrite=True)
@@ -636,15 +623,23 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     hdu_list.close()
     print('wrote to '+out_fn)
 
-    timings["checkpoint_8"] = time.time()
-    print("checkpoint_8")
+    timings[f"checkpoint_{checkpoint_counter}"] = time.time()
+    print(f"checkpoint_{checkpoint_counter}")
+    checkpoint_counter += 1
 
     # * print timings
+    timing_statements = {"checkpoints": [], "other": []}
+
     for key in timings.keys():
         if "checkpoint" not in key:
-            print(key, timings[key])
-    for ii in range(0, 8):
-        print(f"Split {ii}-{ii+1}: ", (timings[f"checkpoint_{ii+1}"] - timings[f"checkpoint_{ii}"]))
+            statement = f"{key}: {timings[key]}"
+            timing_statements["other"].append(statement)
+            print(statement)
+
+    for ii in range(1, checkpoint_counter):
+        statement = f"Split {ii-1}-{ii}: ", (timings[f"checkpoint_{ii}"] - timings[f"checkpoint_{ii-1}"])
+        timing_statements["checkpoints"].append(statement)
+        print(statement)
 
     timing_file = os.path.join(output_dir, f"timings_for_{fn_root_grism}.txt")
     with open(timing_file, "w") as f:
@@ -653,16 +648,13 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
         f.write(f"NPSFs: {npsfs} \n")
         f.write(f"\nCheckpoints\n")
         f.write(f"-----------\n")
-        for ii in range(0, 8):
-            s = f"Split {ii}-{ii+1}: {timings[f'checkpoint_{ii+1}'] - timings[f'checkpoint_{ii}']} \n"
-            f.write(s)  
+        for statement in timing_statements["checkpoints"]:
+            f.write(f"{statement}\n")
         
         f.write(f"\nFor-loops (6-7 split)\n")
         f.write(f"---------------------\n")
         f.write("")
-        for key in timings.keys():
-            if "checkpoint" not in key:
-                s = f"{key} - {timings[key]} \n"
-                f.write(s)
+        for statement in timing_statements["other"]:
+            f.write(f"{statement}\n")
 
     return full_model_noiseless

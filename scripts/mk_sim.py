@@ -5,6 +5,7 @@ from astropy.table import Table
 import numpy as np
 import os, sys
 import yaml
+import time
 
 outdir = sys.argv[1]
 conf_file = os.path.join(outdir, "sim_config.yaml")
@@ -175,8 +176,16 @@ with Pool(processes=80) as pool:
 
 if sim_config["combine_sims"]:
 
-    grouped = ciu.group_grism_files(outdir, all_sims)
-    ciu.combine_sims(outdir, grouped, seed)
-    
-    grouped = ciu.group_ref_files(outdir, all_sims)
-    ciu.combine_refs(outdir, grouped)
+    # attempt to group the files 3 times
+    for _ in range(3):
+        grouped_grisms = ciu.group_grism_files(outdir, all_sims)
+        grouped_refs = ciu.group_ref_files(outdir, all_sims)
+
+        if grouped_grisms and grouped_refs:
+            break
+
+        # if files are not grouped, assume it's a NERSC timing issue; wait 5 secs and try again
+        time.sleep(5)
+
+    ciu.combine_sims(outdir, grouped_grisms, seed)
+    ciu.combine_refs(outdir, grouped_refs)
