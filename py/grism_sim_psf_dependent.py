@@ -209,6 +209,10 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     grizli.fake_image.make_fake_image(h, output=empty_grism, exptime=EXPTIME, nexp=NEXP, background=background)
     file = try_wait_loop(fits.open, empty_grism)
     file[1].header["CONFFILE"] = os.path.join(github_dir, "grism_sim/data", conf)
+    file[0].header["WFICENRA"] = (wfi_cen_ra, "WFI Center RA")
+    file[0].header["WFICENDEC"] = (wfi_cen_dec, "WFI Center Declination")
+    file[0].header["WFICENPA"] = (wfi_cen_pa, "WFI Center PA")
+    file[0].header["DETNUM"] = (det_num, "Detector number, integer value only")
     file.writeto(empty_grism, overwrite=True)
     file.close()
 
@@ -573,7 +577,8 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     print(f"checkpoint_{checkpoint_counter}")
     checkpoint_counter += 1
 
-    # Copy raw grizli output
+    # Rotate to correct orientation; Copy raw grizli output.
+    full_model_noiseless = np.rot90(full_model_noiseless, k=1)
     MODEL_DATA = np.copy(full_model_noiseless)
 
     # Noise
@@ -584,13 +589,7 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     
     bg_noise = background + roman.grism.data["SCI"]
     SCI_DATA = (full_model_poisson / EXPTIME) + bg_noise
-
-    # Final model rotation
-    SCI_DATA = np.rot90(SCI_DATA, k=1)
-    full_model_noiseless = np.rot90(full_model_noiseless, k=1) # ERR_DATA is set using this
-    # DQ_DATA is already set to zero
-    MODEL_DATA = np.rot90(MODEL_DATA, k=1)
-    ISIM_SCI_DATA = np.rot90(full_model_poisson, k=1)
+    ISIM_SCI_DATA = full_model_poisson.astype(int)
 
     # Save model
     hdu_list = fits.open(empty_grism)
