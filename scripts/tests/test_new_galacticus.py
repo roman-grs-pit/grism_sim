@@ -280,7 +280,8 @@ for fname in gal_fns:
             total_flux = sedCalc.evaluate_total_spectrum(fname, idi, obs_wavelengths=obs_wavelengths,use_synphot=False)
             flux = total_flux(high_res_wavelengths, flux_unit='FLAM') #this gets flux interpolating for high res
             
-            roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=True, store=False,is_cgs=True, spectrum_1d=[high_res_wavelengths.value, flux.value])
+            #roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=True, store=False,is_cgs=True, spectrum_1d=[high_res_wavelengths.value, flux.value])
+            roman.compute_model_orders(id=photid, mag=mag, compute_size=True, in_place=True, store=False,is_cgs=True, spectrum_1d=[high_res_wavelengths.value, flux.value])
         tf = time.time()
         logger.info(fname +' finished; processed '+str(len(gals))+' in '+str(tf-t0)+' seconds')
     else:
