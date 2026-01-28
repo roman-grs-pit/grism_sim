@@ -20,7 +20,7 @@ spectrum_overlap: 10 # Extent of overlap between PSFs in Angstroms (roll-on/off)
 # 2) These sizes do not account for size of objects, but only for maximum dy+10 on the detector; Ashley increased each by ~10% after seeing a number of messages about dispersion going outside of bounds.
 # These sizes do have a significant impact on compute times and should be minimized as much as possible.
 size: 
-  SCA01: 87
+  SCA01: 90
   SCA02: 90
   SCA03: 105
   SCA04: 200
