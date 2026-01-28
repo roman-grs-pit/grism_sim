@@ -10,6 +10,26 @@ import grizli
 import yaml
 import pysiaf
 import tqdm
+import logging
+import time
+logname = 'grism_sim'
+logger = logging.getLogger(logname)
+logger.setLevel(logging.INFO)
+
+# create console handler and set level to debug
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+
+# create formatter
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+# add formatter to ch
+ch.setFormatter(formatter)
+
+# add ch to logger
+logger.addHandler(ch)
+
+
 os.environ['github_dir']='/global/common/software/m4943/grizli0/'
 sys.path.append(os.environ['github_dir']+'/grism_sim/py')
 sys.path.append(os.environ['github_dir']+'/psf_grids/py')
@@ -209,6 +229,7 @@ photid = 0
 
 gal_fns = glob.glob('/global/cfs/cdirs/m4943/Galacticus/mockCatalogs/paper1Calibration_allUNIT_0.2degMock/romanUNIT*')
 for fname in gal_fns:
+    t0 = time.time()
     galt = get_galacticus_catinfo(fname)
     if galt is not None:
         gal_xy_siaf = wfi_siaf.sky_to_sci(galt["RA"], galt["DEC"])
@@ -226,7 +247,9 @@ for fname in gal_fns:
         ids = np.arange(0,len(galt))
         ids = ids[sel_ondet&sel_mag]
         gals = galt[sel_ondet&sel_mag]
-        for i in tqdm.tqdm(range(0,len(gals))):
+        #for i in tqdm.tqdm(range(0,len(gals))):
+        for i in range(0,len(gals)):
+            
             photid += 1
             row = gals[i]
             mag = row['mag']
@@ -258,6 +281,7 @@ for fname in gal_fns:
             flux = total_flux(high_res_wavelengths, flux_unit='FLAM') #this gets flux interpolating for high res
             
             roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=True, store=False,is_cgs=True, spectrum_1d=[high_res_wavelengths.value, flux.value])
-        print(fname +' finished')
+        tf = time.time()
+        logger.info(fname +' finished; processed '+str(len(gals))+' in '+str(tf-t0)+' seconds')
     else:
-        print(fname+' failed to load')
+        logger.info(fname+' failed to load')
