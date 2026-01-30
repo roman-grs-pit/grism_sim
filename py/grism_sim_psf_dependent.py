@@ -238,15 +238,15 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
 
     # Append objects from trimmed input star catalogs to detector-level catalog to output
     # Star input catalog
-    catalog_index.extend(stars['star_template_index'])
+    catalog_index.extend(stars['index'])
     catalog_ra.extend(stars['RA'])
     catalog_dec.extend(stars['DEC'])
     catalog_detx.extend(stars['det_x'])
     catalog_dety.extend(stars['det_y'])
     catalog_mag.extend(stars['magnitude'])
     catalog_type.extend(['star']*nstar)
-    catalog_SED.extend(['-']*nstar)
-    catalog_z.extend([0]*nstar)  ##### where do we get the redshift
+    catalog_SED.extend(stars['star_template_index'])
+    catalog_z.extend([0]*nstar)
 
     ngal = 0
 
