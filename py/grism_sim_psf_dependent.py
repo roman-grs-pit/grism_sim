@@ -223,6 +223,31 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     stars = iu.trim_catalog(star_input, wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, 
                             det_num, gpad, tot_im_size)
     nstar = len(stars)
+
+    # Define detector-level catalog output filename and container arrays
+    output_catalog_filename = output_dir+'/'+'detector_catalog'+extra_grism_name+'_'+det+'.csv'
+    catalog_index = [] # Index from input catalog of object
+    catalog_ra = []    # RA of object
+    catalog_dec = []   # Dec of object
+    catalog_detx = []  # x position on detector of object
+    catalog_dety = []  # y position on detector of object
+    catalog_type = []  # Type of object ('gal' or 'star')
+    catalog_mag = []   # Magnitude of object
+    catalog_SED = []   # SED information for 'gal' type objects
+    catalog_z = []     # Redshift of object
+
+    # Append objects from trimmed input star catalogs to detector-level catalog to output
+    # Star input catalog
+    catalog_index.extend(stars['star_template_index'])
+    catalog_ra.extend(stars['RA'])
+    catalog_dec.extend(stars['DEC'])
+    catalog_detx.extend(stars['det_x'])
+    catalog_dety.extend(stars['det_y'])
+    catalog_mag.extend(stars['magnitude'])
+    catalog_type.extend(['star']*nstar)
+    catalog_SED.extend(['-']*nstar)
+    catalog_z.extend([0]*nstar)  ##### where do we get the redshift
+
     ngal = 0
 
     # Cuts galaxy catalog and preps convolution info?
@@ -235,6 +260,20 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
         gals = gals[sel_mag]
         ngal = len(gals)
         print('number of galaxies within detector padded region is '+str(ngal))
+
+        # Append objects from trimmed input galaxy catalogs to detector-level catalog to output
+        # Galaxy input catalog
+        catalog_index.extend(gals['unique_ID'])
+        catalog_ra.extend(gals['RA'])
+        catalog_dec.extend(gals['DEC'])
+        catalog_detx.extend(gals['det_x'])
+        catalog_dety.extend(gals['det_y'])
+        catalog_mag.extend(gals['mag'])
+        catalog_type.extend(['gal']*ngal)
+        gal_SED_paths = [mockdir+'galacticus_FOV_EVERY100_sub_'+str(gals['SIM'][i])+'.hdf5' for i in range(ngal)] 
+        #catalog_SED.extend(gals['SIM'])
+        catalog_SED.extend(gal_SED_paths)
+        catalog_z.extend(gals['Z'])
 
         #fiducial galaxy profile
         
@@ -251,6 +290,15 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     timings[f"checkpoint_{checkpoint_counter}"] = time.time()
     print(f"checkpoint_{checkpoint_counter}")
     checkpoint_counter += 1
+
+
+    # Convert detector catalog lists to astropy Table
+    detector_level_catalog = Table([catalog_index, catalog_ra, catalog_dec, catalog_detx, catalog_dety,
+                                    catalog_mag, catalog_type, catalog_SED, catalog_z], 
+                                    names=['INDEX', 'RA', 'DEC', 'DET_X', 'DET_Y', 'MAG', 'TYPE', 'SED', 'REDSHIFT'])
+    # Saving detector-level catalog
+    detector_level_catalog.write(output_catalog_filename, format='ascii.csv', overwrite=True)
+    print(f"Detector level catalog'{output_catalog_filename}' created.")
 
     # * Read bandpass file, and setup apodization
     df = Table.read(os.path.join(github_dir, 'grism_sim/data/wfirst_wfi_f158_001_syn.fits'), format='fits') #close to H-band
