@@ -231,9 +231,11 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     catalog_dec = []   # Dec of object
     catalog_detx = []  # x position on detector of object
     catalog_dety = []  # y position on detector of object
+    catalog_detx_nopad = []  # x position on detector of object without padding
+    catalog_dety_nopad = []  # y position on detector of object without padding
     catalog_type = []  # Type of object ('gal' or 'star')
     catalog_mag = []   # Magnitude of object
-    catalog_SED = []   # SED information for 'gal' type objects
+    catalog_SED = []   # SED information for object
     catalog_z = []     # Redshift of object
 
     # Append objects from trimmed input star catalogs to detector-level catalog to output
@@ -243,6 +245,8 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     catalog_dec.extend(stars['DEC'])
     catalog_detx.extend(stars['det_x'])
     catalog_dety.extend(stars['det_y'])
+    catalog_detx_nopad.extend(stars['det_x'])
+    catalog_dety_nopad.extend(stars['det_y'])
     catalog_mag.extend(stars['magnitude'])
     catalog_type.extend(['star']*nstar)
     catalog_SED.extend(stars['star_template_index'])
@@ -268,11 +272,13 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
         catalog_dec.extend(gals['DEC'])
         catalog_detx.extend(gals['det_x'])
         catalog_dety.extend(gals['det_y'])
+        catalog_detx_nopad.extend(gals['det_x'])
+        catalog_dety_nopad.extend(gals['det_y'])
         catalog_mag.extend(gals['mag'])
         catalog_type.extend(['gal']*ngal)
         gal_SED_paths = [mockdir+'galacticus_FOV_EVERY100_sub_'+str(gals['SIM'][i])+'.hdf5' for i in range(ngal)] 
-        #catalog_SED.extend(gals['SIM'])
-        catalog_SED.extend(gal_SED_paths)
+        #catalog_SED.extend(gal_SED_paths)  # In case we want to save full SED paths
+        catalog_SED.extend(gals['SIM'])
         catalog_z.extend(gals['Z'])
 
         #fiducial galaxy profile
@@ -293,12 +299,24 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
 
 
     # Convert detector catalog lists to astropy Table
-    detector_level_catalog = Table([catalog_index, catalog_ra, catalog_dec, catalog_detx, catalog_dety,
+    detector_level_catalog = Table([catalog_index, catalog_ra, catalog_dec, catalog_detx, catalog_dety, 
+                                    catalog_detx_nopad, catalog_dety_nopad, 
                                     catalog_mag, catalog_type, catalog_SED, catalog_z], 
-                                    names=['INDEX', 'RA', 'DEC', 'DET_X', 'DET_Y', 'MAG', 'TYPE', 'SED', 'REDSHIFT'])
-    # Saving detector-level catalog
-    detector_level_catalog.write(output_catalog_filename, format='ascii.csv', overwrite=True)
-    print(f"Detector level catalog'{output_catalog_filename}' created.")
+                                    names=['INDEX', 'RA', 'DEC', 'DET_X', 'DET_Y', 'DET_X_NOPAD', 'DET_Y_NOPAD', 
+                                           'MAG', 'TYPE', 'SED', 'REDSHIFT'])
+    
+    # Remove objects which fall on padding not the detector
+    detector_level_catalog = detector_level_catalog[(detector_level_catalog["DET_X"] >= gpad) & (detector_level_catalog["DET_X"] <= (4088+gpad))]
+    detector_level_catalog = detector_level_catalog[(detector_level_catalog["DET_Y"] >= gpad) & (detector_level_catalog["DET_Y"] <= (4088+gpad))]
+    detector_level_catalog["DET_X_NOPAD"] -= gpad
+    detector_level_catalog["DET_Y_NOPAD"] -= gpad
+
+    hdu_catalog = fits.table_to_hdu(detector_level_catalog)
+    hdu_catalog.name = "CATALOG"
+    
+    # Saving detector-level catalog as csv
+    #detector_level_catalog.write(output_catalog_filename, format='ascii.csv', overwrite=True)
+    #print(f"Detector level catalog'{output_catalog_filename}' created.")
 
     # * Read bandpass file, and setup apodization
     df = Table.read(os.path.join(github_dir, 'grism_sim/data/wfirst_wfi_f158_001_syn.fits'), format='fits') #close to H-band
@@ -647,12 +665,14 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
         # hdu_list["DQ"] = 0 is already true and need not be set again
         hdu_list.append(fits.ImageHDU(data=MODEL_DATA[gpad:-gpad, gpad:-gpad], name='MODEL'))
         hdu_list.append(fits.ImageHDU(data=ISIM_SCI_DATA[gpad:-gpad, gpad:-gpad], name="ISIM_SCI"))
+        hdu_list.append(hdu_catalog)
     else:
         hdu_list["SCI"].data = SCI_DATA
         hdu_list['ERR'].data = np.sqrt((full_model_noiseless + background) * EXPTIME) / EXPTIME
         # hdu_list["DQ"] = 0 is already true and need not be set again
         hdu_list.append(fits.ImageHDU(data=MODEL_DATA, name='MODEL'))
         hdu_list.append(fits.ImageHDU(data=ISIM_SCI_DATA, name="ISIM_SCI"))
+        hdu_list.append(hdu_catalog)
     
     out_fn = os.path.join(output_dir, fn_root_grism+'.fits')
     hdu_list.writeto(out_fn, overwrite=True)
