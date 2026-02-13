@@ -583,7 +583,7 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
                 sed_flux = sim['Outputs']['SED:observed:dust:Av1.6523'][row['IDX']]
 
                 # Saving input SED flux
-                sed_foldername = 'SED'
+                sed_foldername = str(det)+'_SED'
                 sed_folder = os.path.join(output_dir, sed_foldername)
                 os.makedirs(sed_folder, exist_ok=True)
                 sed_filename = 'gal_sed'+extra_grism_name+'_'+str(row['unique_ID'])+str(row['SIM'])+'.ecsv'
