@@ -276,9 +276,8 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
         catalog_dety_nopad.extend(gals['det_y'])
         catalog_mag.extend(gals['mag'])
         catalog_type.extend(['gal']*ngal)
-        gal_SED_paths = [mockdir+'galacticus_FOV_EVERY100_sub_'+str(gals['SIM'][i])+'.hdf5' for i in range(ngal)] 
-        #catalog_SED.extend(gal_SED_paths)  # In case we want to save full SED paths
-        catalog_SED.extend(gals['SIM'])
+        gal_SED_paths = [str(gals['SIM'][i])+'_'+str(gals['IDX'][i]) for i in range(ngal)]   # Format as 'SIM_IDX'
+        catalog_SED.extend(gal_SED_paths)
         catalog_z.extend(gals['Z'])
 
         #fiducial galaxy profile
@@ -306,8 +305,8 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
                                            'MAG', 'TYPE', 'SED', 'REDSHIFT'])
     
     # Remove objects which fall on padding not the detector
-    detector_level_catalog = detector_level_catalog[(detector_level_catalog["DET_X"] >= gpad) & (detector_level_catalog["DET_X"] <= (4088+gpad))]
-    detector_level_catalog = detector_level_catalog[(detector_level_catalog["DET_Y"] >= gpad) & (detector_level_catalog["DET_Y"] <= (4088+gpad))]
+    #detector_level_catalog = detector_level_catalog[(detector_level_catalog["DET_X"] >= gpad) & (detector_level_catalog["DET_X"] <= (4088+gpad))]
+    #detector_level_catalog = detector_level_catalog[(detector_level_catalog["DET_Y"] >= gpad) & (detector_level_catalog["DET_Y"] <= (4088+gpad))]
     detector_level_catalog["DET_X_NOPAD"] -= gpad
     detector_level_catalog["DET_Y_NOPAD"] -= gpad
 
@@ -582,6 +581,16 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
                 sim_fn = os.path.join(mockdir, 'galacticus_FOV_EVERY100_sub_'+str(row['SIM'])+'.hdf5')
                 sim = h5py.File(sim_fn, 'r')
                 sed_flux = sim['Outputs']['SED:observed:dust:Av1.6523'][row['IDX']]
+
+                # Saving input SED flux
+                sed_foldername = 'SED'
+                sed_folder = os.path.join(output_dir, sed_foldername)
+                os.makedirs(sed_folder, exist_ok=True)
+                sed_filename = 'gal_sed'+extra_grism_name+'_'+str(row['unique_ID'])+str(row['SIM'])+'.ecsv'
+                sed_path = os.path.join(sed_folder, sed_filename)
+                sed_table = Table([sed_flux], names=['SED'])
+                sed_table.write(sed_path, format="ascii.ecsv", overwrite=True)
+                #np.savetxt(sed_path, sed_flux, fmt='%.16f')   # Save as simple csv instead 
 
                 # initial cut to avoid errors from nan values
                 wave = np.linspace(2000, 40000, 19001) #wavelength grid for simulation
