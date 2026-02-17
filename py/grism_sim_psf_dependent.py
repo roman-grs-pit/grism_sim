@@ -224,19 +224,19 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
                             det_num, gpad, tot_im_size)
     nstar = len(stars)
 
-    # Define detector-level catalog output filename and container arrays
-    output_catalog_filename = output_dir+'/'+'detector_catalog'+extra_grism_name+'_'+det+'.csv'
+    # Define detector-level catalog container arrays
     catalog_index = [] # Index from input catalog of object
     catalog_ra = []    # RA of object
     catalog_dec = []   # Dec of object
     catalog_detx = []  # x position on detector of object
     catalog_dety = []  # y position on detector of object
-    catalog_detx_nopad = []  # x position on detector of object without padding
-    catalog_dety_nopad = []  # y position on detector of object without padding
     catalog_type = []  # Type of object ('gal' or 'star')
     catalog_mag = []   # Magnitude of object
-    catalog_SED = []   # SED information for object
+    catalog_SED_info = []   # SED information for object
     catalog_z = []     # Redshift of object
+    
+    # SED inputs storage containers
+    catalog_SED_flux = []
 
     # Append objects from trimmed input star catalogs to detector-level catalog to output
     # Star input catalog
@@ -245,11 +245,9 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     catalog_dec.extend(stars['DEC'])
     catalog_detx.extend(stars['det_x'])
     catalog_dety.extend(stars['det_y'])
-    catalog_detx_nopad.extend(stars['det_x'])
-    catalog_dety_nopad.extend(stars['det_y'])
     catalog_mag.extend(stars['magnitude'])
     catalog_type.extend(['star']*nstar)
-    catalog_SED.extend(stars['star_template_index'])
+    catalog_SED_info.extend(stars['star_template_index'])
     catalog_z.extend([0]*nstar)
 
     ngal = 0
@@ -272,12 +270,10 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
         catalog_dec.extend(gals['DEC'])
         catalog_detx.extend(gals['det_x'])
         catalog_dety.extend(gals['det_y'])
-        catalog_detx_nopad.extend(gals['det_x'])
-        catalog_dety_nopad.extend(gals['det_y'])
         catalog_mag.extend(gals['mag'])
         catalog_type.extend(['gal']*ngal)
-        gal_SED_paths = [str(gals['SIM'][i])+'_'+str(gals['IDX'][i]) for i in range(ngal)]   # Format as 'SIM_IDX'
-        catalog_SED.extend(gal_SED_paths)
+        gal_SED_paths = [str(gals['IDX'][i])+str(gals['SIM'][i]).zfill(3) for i in range(ngal)]   # Format same as 'unique_ID'
+        catalog_SED_info.extend(gal_SED_paths)
         catalog_z.extend(gals['Z'])
 
         #fiducial galaxy profile
@@ -299,23 +295,20 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
 
     # Convert detector catalog lists to astropy Table
     detector_level_catalog = Table([catalog_index, catalog_ra, catalog_dec, catalog_detx, catalog_dety, 
-                                    catalog_detx_nopad, catalog_dety_nopad, 
-                                    catalog_mag, catalog_type, catalog_SED, catalog_z], 
-                                    names=['INDEX', 'RA', 'DEC', 'DET_X', 'DET_Y', 'DET_X_NOPAD', 'DET_Y_NOPAD', 
-                                           'MAG', 'TYPE', 'SED', 'REDSHIFT'])
-    
+                                    catalog_mag, catalog_type, catalog_SED_info, catalog_z], 
+                                    names=['INDEX', 'RA', 'DEC', 'DET_X', 'DET_Y',
+                                           'MAG', 'TYPE', 'SED_INFO', 'REDSHIFT'],
+                                      dtype=('i8', 'f8', 'f8', 'f8', 'f8', 'f8', 'S8', 'i8', 'f8'))
+    # Subtract padding from detector coordinates
+    detector_level_catalog["DET_X"] -= gpad
+    detector_level_catalog["DET_Y"] -= gpad
     # Remove objects which fall on padding not the detector
-    #detector_level_catalog = detector_level_catalog[(detector_level_catalog["DET_X"] >= gpad) & (detector_level_catalog["DET_X"] <= (4088+gpad))]
-    #detector_level_catalog = detector_level_catalog[(detector_level_catalog["DET_Y"] >= gpad) & (detector_level_catalog["DET_Y"] <= (4088+gpad))]
-    detector_level_catalog["DET_X_NOPAD"] -= gpad
-    detector_level_catalog["DET_Y_NOPAD"] -= gpad
+    #detector_level_catalog = detector_level_catalog[(detector_level_catalog["DET_X"] >= 0.) & (detector_level_catalog["DET_X"] <= (4088))]
+    #detector_level_catalog = detector_level_catalog[(detector_level_catalog["DET_Y"] >= 0.) & (detector_level_catalog["DET_Y"] <= (4088))]
 
     hdu_catalog = fits.table_to_hdu(detector_level_catalog)
     hdu_catalog.name = "CATALOG"
-    
-    # Saving detector-level catalog as csv
-    #detector_level_catalog.write(output_catalog_filename, format='ascii.csv', overwrite=True)
-    #print(f"Detector level catalog'{output_catalog_filename}' created.")
+    hdu_catalog.header["PADDING"] = gpad
 
     # * Read bandpass file, and setup apodization
     df = Table.read(os.path.join(github_dir, 'grism_sim/data/wfirst_wfi_f158_001_syn.fits'), format='fits') #close to H-band
@@ -341,6 +334,41 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     timings[f"checkpoint_{checkpoint_counter}"] = time.time()
     print(f"checkpoint_{checkpoint_counter}")
     checkpoint_counter += 1
+
+    # * Save SED input fluxes
+    for ii in range(0, len(stars)):
+        row = stars[ii]
+        temp_ind = int(temp_inds[ii])
+        star_type = templates[temp_ind].strip('\n')
+        temp = np.loadtxt(os.path.join(tempdir, star_type)).transpose()
+        wave = np.arange(7000, 20000, 5)
+        flux = np.interp(wave, temp[0], temp[1])
+        catalog_SED_flux.append(flux)
+    if ngal>0:
+        for ii in range(0, len(gals)):
+            row = gals[ii]
+            sim_fn = os.path.join(mockdir, 'galacticus_FOV_EVERY100_sub_'+str(row['SIM'])+'.hdf5')
+            sim = h5py.File(sim_fn, 'r')
+            sed_flux = sim['Outputs']['SED:observed:dust:Av1.6523'][row['IDX']]
+            wave = np.linspace(2000, 40000, 19001) #wavelength grid for simulation
+            sel_wave = wave > 7000
+            sel_wave &= wave < 20000
+            wave = wave[sel_wave]
+            flux = sed_flux[sel_wave]
+            catalog_SED_flux.append(flux)
+
+    # Store wavelength grid for galaxies
+    wave_gal = np.linspace(2000, 40000, 19001)
+    sel_wave = wave_gal > 7000
+    sel_wave &= wave_gal < 20000
+    wave_gal = wave_gal[sel_wave]
+    
+    SED_filename = os.path.join(output_dir, 'SED'+extra_grism_name+'_'+det+'.parquet')
+    SED_df = Table([catalog_index, catalog_SED_flux], names=['INDEX', 'FLUX'], dtype=('i8', 'object'))
+    SED_df.meta['comments'] = ['Wavelength (stars)', str(np.arange(7000, 20000, 5)), 
+                         'Wavelength (galaxies)', str(wave_gal)]
+    SED_df.write(SED_filename, format='parquet', overwrite=True) 
+    
 
     # * Instantiate Grizli GrismFLT
     roman = try_wait_loop(GrismFLT, grism_file=empty_grism,ref_file=empty_direct_fits_out_nopad, seg_file=None, pad=gpad)
@@ -581,16 +609,6 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
                 sim_fn = os.path.join(mockdir, 'galacticus_FOV_EVERY100_sub_'+str(row['SIM'])+'.hdf5')
                 sim = h5py.File(sim_fn, 'r')
                 sed_flux = sim['Outputs']['SED:observed:dust:Av1.6523'][row['IDX']]
-
-                # Saving input SED flux
-                sed_foldername = str(det)+'_SED'
-                sed_folder = os.path.join(output_dir, sed_foldername)
-                os.makedirs(sed_folder, exist_ok=True)
-                sed_filename = 'gal_sed'+extra_grism_name+'_'+str(row['unique_ID'])+str(row['SIM'])+'.ecsv'
-                sed_path = os.path.join(sed_folder, sed_filename)
-                sed_table = Table([sed_flux], names=['SED'])
-                sed_table.write(sed_path, format="ascii.ecsv", overwrite=True)
-                #np.savetxt(sed_path, sed_flux, fmt='%.16f')   # Save as simple csv instead 
 
                 # initial cut to avoid errors from nan values
                 wave = np.linspace(2000, 40000, 19001) #wavelength grid for simulation
