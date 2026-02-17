@@ -17,7 +17,7 @@ import asdf
 import os.path
 
 github_dir ='/global/common/software/m4943/grizli0/'
-star_file = '/global/cfs/cdirs/m4943/grismsim/stars/sim_star_cat_galacticus_4isim.ecsv'
+star_file = '/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/Euclid_Roman_4deg2_radec_wstars_4isim.ecsv'
 npix = 5000
 pixscalefrac = 0.5
 pixscale = pixscalefrac * parameters.pixel_scale
@@ -55,7 +55,7 @@ def mkL3(args):
     af.write_to(open(args[2], 'wb'))
 
 output_dir = '/global/cfs/cdirs/m4943/grismsim/skycell_mosaics/'
-out_base_name = '_stars.asdf'
+out_base_name = '_starsandgals.asdf'
 nproc=20
 if __name__ == '__main__':
     from multiprocessing import Pool
