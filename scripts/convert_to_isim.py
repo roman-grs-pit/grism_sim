@@ -10,6 +10,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--mkstars", help="whether to make the star file",  action='store_true')
 parser.add_argument("--mkgal", help="",  action='store_true')
+args = parser.parse_args()
 
 def mag2flux(mag):
     return 10**(mag/-2.5)
