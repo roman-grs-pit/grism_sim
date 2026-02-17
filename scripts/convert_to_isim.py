@@ -32,7 +32,7 @@ if args.mkgal:
     t['half_light_radius'] = 2.5*.11
     axisratio  = np.ones(len(gals))
     t['ba'] = axisratio
-    ol = np.zeros(len(stars))
+    ol = np.zeros(len(gals))
     t['pa'] = ol
     t.write('/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/Euclid_Roman_4deg2_radec_4isim.ecsv',overwrite=True)
 
