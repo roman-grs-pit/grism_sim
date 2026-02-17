@@ -364,7 +364,7 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     wave_gal = wave_gal[sel_wave]
     
     SED_filename = os.path.join(output_dir, 'SED'+extra_grism_name+'_'+det+'.parquet')
-    SED_df = Table([catalog_index, catalog_SED_flux], names=['INDEX', 'FLUX'], dtype=('i8', 'object'))
+    SED_df = Table([catalog_index, catalog_SED_flux], names=['INDEX', 'FLUX'])
     SED_df.meta['comments'] = ['Wavelength (stars)', str(np.arange(7000, 20000, 5)), 
                          'Wavelength (galaxies)', str(wave_gal)]
     SED_df.write(SED_filename, format='parquet', overwrite=True) 
