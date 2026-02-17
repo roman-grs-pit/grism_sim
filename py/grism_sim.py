@@ -46,7 +46,7 @@ def get_trace(x,y,dx,beams,conf,ra=10,dec=0,pa=0,tempf='scratch',exptime=301,nex
     grizli.fake_image.make_fake_image(h, output=empty_grism, exptime=301, nexp=1, background=.5)
     file = fits.open(empty_grism)
     file[1].header["CONFFILE"] = conf
-    file.writeto(empty_grism, overwrite=True)
+    file.writeto(empty_grism, overwrite=True,output_verify='silentfix')
     file.close()
     image = GrismFLT(grism_file=empty_grism)
     out = {}
