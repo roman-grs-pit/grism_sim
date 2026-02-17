@@ -1,7 +1,7 @@
 #convert catalogs to format needed for romanism
 import numpy as np
 from matplotlib import pyplot as plt
-from astropy.table import Table, join
+from astropy.table import Table, join, vstack
 import os,sys
 from astropy.io import fits
 
@@ -34,7 +34,9 @@ if args.mkgal:
     t['ba'] = axisratio
     ol = np.zeros(len(gals))
     t['pa'] = ol
-    t.write('/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/Euclid_Roman_4deg2_radec_4isim.ecsv',overwrite=True)
+    tgal = t
+    del t
+    #t.write('/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/Euclid_Roman_4deg2_radec_4isim.ecsv',overwrite=True)
 
 if args.mkstars:
     stars = Table.read('/global/cfs/cdirs/m4943/grismsim/stars/sim_star_cat_galacticus.ecsv')
@@ -60,4 +62,12 @@ if args.mkstars:
     t['ba'] = axisratio
     ol = np.zeros(len(stars))#[0,0]
     t['pa'] = ol
+    #t.write('/global/cfs/cdirs/m4943/grismsim/stars/sim_star_cat_galacticus_4isim.ecsv',overwrite=True)
+
+if args.mkstars and args.mkgal:
+    t = vstack([tgal,t])
+    t.write('/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/Euclid_Roman_4deg2_radec_wstars_4isim.ecsv',overwrite=True)
+elif args.mkgal:
+    tgal.write('/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/Euclid_Roman_4deg2_radec_4isim.ecsv',overwrite=True)
+elif args.mkstars:
     t.write('/global/cfs/cdirs/m4943/grismsim/stars/sim_star_cat_galacticus_4isim.ecsv',overwrite=True)
