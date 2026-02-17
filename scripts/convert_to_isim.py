@@ -23,7 +23,7 @@ if args.mkgal:
     t['n'] = np.ones(len(gals))
     t['type'] = 'SER'
     magl = gals['mag_F158_Av1.6523']
-    fluxl = mat2flux(np.array(magl))
+    fluxl = mag2flux(np.array(magl))
     t['F158'] = fluxl
     t['kron_f158_abmag'] = magl
     mel = [0.1,0.1]
