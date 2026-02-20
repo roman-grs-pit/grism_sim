@@ -26,6 +26,13 @@ def load_star_catalog(star_fn="stars/sim_star_cat_galacticus.ecsv"):
     star_cat = Table.read(roman_datapath(star_fn), format='ascii.ecsv')
     return star_cat
 
+def load_gal_catalog(gal_fn="galacticus_4deg2_mock/Euclid_Roman_4deg2_radec.fits"):
+    """
+    Load a galaxy catalog from a given filename.
+    """
+    gal_cat = Table.read(roman_datapath(gal_fn), format='fits')
+    return gal_cat
+
 def load_skycells(skycell_fn="misc/roman_wfi_skycells_0001.asdf"):
     """
     Load skycell data from a given filename. 
@@ -52,6 +59,7 @@ def find_skycells(cat, skycell_dm=None):
     aux_table : Astropy table with columns 'tile_id', 'skycells' 
         mapping each star to its tile and skycell.
 
+    This code is based on Roman-STScI-000708, Sec 3.7
     """
     # Load in the skycells if not passed
     if skycell_dm is None:
@@ -124,6 +132,8 @@ def find_skycells(cat, skycell_dm=None):
 
         # Now loop over skycells within each tile    
         start, end = tile['skycell_start'], tile['skycell_end']
+        # This logic is directly from Roman-STScI-000708, Sec 3.7 
+        # and it seems that the end is exclusive. The datamodel does not say anything on this.
         cells = skycells[start:end]
         cell_centers  = SkyCoord(ra=cells['ra_center']*u.deg, dec=cells['dec_center']*u.deg)
 
@@ -163,7 +173,11 @@ def find_skycells(cat, skycell_dm=None):
 #
 # Note that the sourceid column is not part of the standard Roman L4 catalog, nor is
 # in the data model, but it seems to still work (at least for now).
-def create_empty_L4_catalog(filters=None, n_rows=0):
+def create_empty_L4_catalog(filters=None, n_rows=1):
+    # Assert that n_rows > 0
+    if n_rows < 1:
+        raise ValueError("n_rows must be greater than or equal to 1.")
+
     if filters is None:
         filters = ['f062', 'f087', 'f106', 'f129', 'f146', 'f158', 'f184', 'f213']
     m = rdm.datamodels.MultibandSourceCatalogModel()
@@ -215,51 +229,82 @@ def create_empty_L4_catalog(filters=None, n_rows=0):
 #  is_extended_f158 = False
 #  orientation_sky = 0
 #  sourceid = index # Not a column in the datamodel, but useful to track
+#
+#
+# References:
+#  https://rad.readthedocs.io/en/latest/generated/schemas/tables/source_catalog_columns-1.0.0.html
+
 # 
-def mk_star_L4_catalogs():
+def mk_stargal_L4_catalogs():
     outpath=roman_datapath("skycell_catalogs")
-    print(f"Writing star L4 catalogs to {outpath}")
+    print(f"Writing star and galaxy L4 catalogs to {outpath}")
     # Check to see if the output path exists, and create it if not
     if not os.path.exists(outpath):
         os.makedirs(outpath)
 
     # Build the star catalog and auxiliary table
     star_cat = load_star_catalog()
-    aux_table = find_skycells(star_cat)
-    full_cat = hstack([star_cat, aux_table])
+    star_aux_table = find_skycells(star_cat)
+    full_star_cat = hstack([star_cat, star_aux_table])
 
-    # Group by skycells
-    skycell_cat = full_cat.group_by('skycell_name')
-    n_skycells = len(skycell_cat.groups)
-    print(f"Found {n_skycells} skycells with stars.")
+    # Do the same for the galaxy catalog
+    gal_cat = load_gal_catalog()
+    gal_aux_table = find_skycells(gal_cat)
+    full_gal_cat = hstack([gal_cat, gal_aux_table])
+
+    # Combine the skycell names from the star and galaxy catalogs and get 
+    # the unique set of skycells
+    all_skycells = np.unique(np.concatenate([full_star_cat['skycell_name'], full_gal_cat['skycell_name']]))
+    print(f"Found {len(all_skycells)} unique skycells across stars and galaxies.")
 
     # Loop over the skycells
-    fwhm_value = 0.158  # arcsec
-    for iskycell, cat1 in zip(skycell_cat.groups.keys, skycell_cat.groups):
-        skycell_name = iskycell['skycell_name']
+    star_fwhm_value = 0.158  # arcsec
+    gal_r_eff_value = 2.5*0.11 # arcsec, based on half-light radius of 2.5 pixels and pixel scale of 0.11 arcsec/pixel
+    gal_fwhm_value = 0.83 * gal_r_eff_value # arcsec, based on FWHM ~ 0.83 * r_eff for a Sersic profile with n=1
+    for skycell_name in all_skycells:    
+        # Select the stars and galaxies in this skycell
+        in_skycell_stars = full_star_cat['skycell_name'] == skycell_name
+        in_skycell_gals = full_gal_cat['skycell_name'] == skycell_name
+        cat1 = full_star_cat[in_skycell_stars]
+        cat2 = full_gal_cat[in_skycell_gals]
+
         n_stars = len(cat1)
-        print(f"Processing skycell {skycell_name} with {n_stars} stars.")
+        n_gals = len(cat2)
+        n_total = n_stars + n_gals
+        print(f"Processing skycell {skycell_name} with {n_stars} stars, {n_gals} galaxies, {n_total} total objects.")
 
         # Create empty L4 catalog
-        l4_cat = create_empty_L4_catalog(n_rows=n_stars)
+        l4_cat = create_empty_L4_catalog(n_rows=n_total)
 
-        # Populate the columns
-        l4_cat['ra'] = cat1['RA']
-        l4_cat['dec'] = cat1['DEC']
-        l4_cat['f158_kron_abmag'] = cat1['magnitude']
-        l4_cat['f158_kron_abmag_err'] = 0.0
-        l4_cat['fwhm'] = fwhm_value
-        semimajor_value = fwhm_value / (2.0 * np.sqrt(2.0 * np.log(2.0)))
-        l4_cat['semimajor'] = semimajor_value
-        l4_cat['semiminor'] = semimajor_value
-        l4_cat['is_extended_f158'] = False
-        l4_cat['orientation_sky'] = 0.0
-        l4_cat['sourceid'] = np.arange(n_stars, dtype=np.int64)
+        # Populate the columns, first with stars
+        l4_cat['ra'][0:n_stars] = cat1['RA']
+        l4_cat['dec'][0:n_stars] = cat1['DEC']
+        l4_cat['kron_f158_abmag'][0:n_stars] = cat1['magnitude']
+        l4_cat['kron_f158_abmag_err'][0:n_stars] = 0.0
+        l4_cat['fwhm'][0:n_stars] = star_fwhm_value
+        semimajor_value = star_fwhm_value / (2.0 * np.sqrt(2.0 * np.log(2.0)))
+        l4_cat['semimajor'][0:n_stars] = semimajor_value
+        l4_cat['semiminor'][0:n_stars] = semimajor_value
+        l4_cat['is_extended_f158'][0:n_stars] = False
+        l4_cat['orientation_sky'][0:n_stars] = 0.0
+        l4_cat['sourceid'][0:n_stars] = np.arange(n_stars, dtype=np.int64)
+
+        # Now populate the columns for galaxies
+        l4_cat['ra'][n_stars:n_total] = cat2['RA']
+        l4_cat['dec'][n_stars:n_total] = cat2['DEC']
+        l4_cat['kron_f158_abmag'][n_stars:n_total] = cat2['mag_F158_Av1.6523']
+        l4_cat['kron_f158_abmag_err'][n_stars:n_total] = 0
+        l4_cat['fwhm'][n_stars:n_total] = gal_fwhm_value
+        l4_cat['semimajor'][n_stars:n_total] = gal_fwhm_value / (2.0 * np.sqrt(2.0 * np.log(2.0)))
+        l4_cat['semiminor'][n_stars:n_total] = gal_fwhm_value / (2.0 * np.sqrt(2.0 * np.log(2.0)))
+        l4_cat['is_extended_f158'][n_stars:n_total] = True
+        l4_cat['orientation_sky'][n_stars:n_total] = 0.0
+        l4_cat['sourceid'][n_stars:n_total] = cat2['unique_ID']
 
         # Write out the catalog in parquet format
-        out_fn = os.path.join(outpath, f"star_catalog_{skycell_name}.parquet")
+        out_fn = os.path.join(outpath, f"stargal_catalog_{skycell_name}.parquet")
         l4_cat.write(out_fn, format='parquet', overwrite=True)
-        print(f"Wrote star L4 catalog to {out_fn}")
+        print(f"Wrote star and galaxy L4 catalog to {out_fn}")
 
 if __name__ == "__main__":
-    mk_star_L4_catalogs()
+    mk_stargal_L4_catalogs()
