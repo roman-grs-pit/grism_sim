@@ -75,20 +75,20 @@ else:
               "dec": [0, sim_config["dither"]["dec"]]}
 
 if isinstance(sim_config["wfi_cen_ra"], (float, int)):
-    wfi_cen_ra = [sim_config["wfi_cen_ra"] + dith for dith in dither["ra"]]
+    wfi_cen_ra = [sim_config["wfi_cen_ra"]]
 else:
     start = sim_config["wfi_cen_ra"]["start"]
     step = sim_config["wfi_cen_ra"]["step"]
     num = sim_config["wfi_cen_ra"]["num"]
-    wfi_cen_ra = [start + (step * ii) + dith for ii in range(0, num) for dith in dither["ra"]]
+    wfi_cen_ra = [start + (step * ii) for ii in range(0, num)]
 
 if isinstance(sim_config["wfi_cen_dec"], (float, int)):
-    wfi_cen_dec = [sim_config["wfi_cen_dec"] + dith for dith in dither["dec"]]
+    wfi_cen_dec = [sim_config["wfi_cen_dec"]]
 else:
     start = sim_config["wfi_cen_dec"]["start"]
     step = sim_config["wfi_cen_dec"]["step"]
     num = sim_config["wfi_cen_dec"]["num"]
-    wfi_cen_dec = [start + (step * ii) + dith for ii in range(0, num) for dith in dither["dec"]]
+    wfi_cen_dec = [start + (step * ii) for ii in range(0, num)]
 
 if isinstance(sim_config["wfi_cen_pa"], (float, int)):
     wfi_cen_pa = [sim_config["wfi_cen_pa"]]
@@ -100,10 +100,13 @@ else:
 pointings = []
 for ra in wfi_cen_ra:
     for dec in wfi_cen_dec:
-        for pa in wfi_cen_pa:
-            pointings.append({"wfi_cen_ra": ra, 
-                              "wfi_cen_dec": dec, 
-                              "wfi_cen_pa": pa})
+        for dither_ra, dither_dec in zip(dither["ra"], dither["dec"]):
+            ra += dither_ra
+            dec += dither_dec
+            for pa in wfi_cen_pa:
+                pointings.append({"wfi_cen_ra": ra,
+                                  "wfi_cen_dec": dec,
+                                  "wfi_cen_pa": pa})
 
 sims = []
 seed = sim_config["seed"]
