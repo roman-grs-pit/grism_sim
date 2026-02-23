@@ -197,15 +197,21 @@ def parse_sim_config(yaml_dir, save_args=True, overwrite=False):
 
     return all_sim_args, combine_sim_args
 
-def dosim(dt):
+def dosim(dt) -> None:
     mk_grism(output_dir = outdir,
              **dt)
 
-def combine_grisms(dt):
+def combine_grisms(dt) -> None:
+    if fhu.is_complete(os.path.join(outdir, dt[0] + ".fits")):
+        return None
     ciu.combine_sims(outdir, *dt, seed=combine_args["seed"])
+    return None
 
-def combine_refs(dt):
+def combine_refs(dt) -> None:
+    if fhu.is_complete_ref(os.path.join(outdir, dt[0] + ".fits")):
+        return None
     ciu.combine_refs(outdir, *dt)
+    return None
 
 if __name__ == "__main__":
     all_sims, combine_args = parse_sim_config(outdir, overwrite=args.overwrite_sim_args)
@@ -214,7 +220,7 @@ if __name__ == "__main__":
         all_sims = fhu.trim_complete_sims(outdir, all_sims)
 
     with Pool(processes=args.nprocesses) as pool:
-        res = pool.map(dosim, all_sims)
+        pool.map(dosim, all_sims)
 
     if combine_args["combine"]:
 
@@ -222,8 +228,12 @@ if __name__ == "__main__":
         grouped_grisms = try_wait_loop(ciu.group_grism_files, outdir, all_sims)
         grouped_refs = try_wait_loop(ciu.group_ref_files, outdir, all_sims)
 
-        with Pool(processes=args.nprocesses) as pool:
-            pool.map(combine_grisms, grouped_grisms.items())
-            pool.map(combine_refs, grouped_refs.items())
+        # use half of nprocesses for ref_combination; use remainder for grisms
+        ref_proc = args.nprocesses // 2
+        with Pool(processes=args.processe - ref_proc) as grism_pool, Pool(processes=ref_proc) as ref_pool:
+            grism_res = grism_pool.map_async(combine_grisms, grouped_grisms.items())
+            ref_res = ref_pool.map_async(combine_refs, grouped_refs.items())
+            grism_res.wait()
+            ref_res.wait()
 
     wrap_with_romanisim(outdir)

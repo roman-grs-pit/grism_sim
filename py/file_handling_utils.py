@@ -18,6 +18,25 @@ def naming_conventions(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det, extra_ref_name=
 
     return filenames
 
+def is_complete_ref(path):
+    """Checks if a Grism Sim file is complete"""
+
+    # see if it's exists
+    if not os.path.exists(path):
+        return False
+
+    # open it up
+    with fits.open(path) as hdul:
+
+        # if the IMAGE HDU doesn't exist or is empty, it's probably incomplete
+        if "IMAGE" not in hdul:
+            return False
+        elif not np.any(hdul["IMAGE"].data):
+            return False
+
+    # if it exists, it has the IMAGE HDU, and the IMAGE HDU has something, it's probably complete
+    return True
+
 def is_complete(path):
     """Checks if a Grism Sim file is complete"""
 
@@ -53,8 +72,14 @@ def trim_complete_sims(outdir, all_sims):
         partial_fn = os.path.join(outdir, names["fn_grism"] + ".fits")
 
         # check combined and partial file for completeness.
-        if is_complete(combined_fn) or is_complete(partial_fn):
-            continue
+        if is_complete(combined_fn):
+            if is_complete(partial_fn):
+                continue
+            os.remove(combined_fn)
+
+        else:
+            if is_complete(partial_fn):
+                continue
 
         # if it's not complete, add it to the to-do list and delete any file remnants
         trimmed_sims.append(sim)
