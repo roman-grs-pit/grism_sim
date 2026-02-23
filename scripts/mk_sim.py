@@ -12,11 +12,13 @@ import file_handling_utils as fhu
 parser = argparse.ArgumentParser()
 parser.add_argument("outdir")
 parser.add_argument("--incomplete", action="store_true")
+parser.add_argument("--overwrite_sim_args", action="store_true", default=False)
 args = parser.parse_args()
 outdir = args.outdir
 incomplete = args.incomplete
+overwrite_sim_args = args.overwrite_sim_args
 
-def parse_sim_config(yaml_dir, save_args=True):
+def parse_sim_config(yaml_dir, save_args=True, overwrite=False):
     conf_file = os.path.join(yaml_dir, "sim_config.yaml")
     with open(conf_file) as f:
         sim_config = yaml.safe_load(f)
@@ -182,8 +184,14 @@ def parse_sim_config(yaml_dir, save_args=True):
             info.pop("gal_input", None)
             save_sim_args_list.append(info)
 
-        with open(os.path.join(yaml_dir, "sim_args.yaml"), "w") as f:
-            yaml.dump(save_sim_args_list, f)
+        # if file exists, consider appending
+        if overwrite or not os.path.exists(sim_args_path := os.path.join(yaml_dir, "sim_args.yaml")):
+            with open(sim_args_path, "w") as f:
+                yaml.dump(save_sim_args_list, f)
+        else:
+            with open(sim_args_path, "a") as f:
+                f.write("\n#" + '-' * 60 + "\n")
+                yaml.dump(save_sim_args_list)
 
         del save_sim_args_list
 
@@ -194,7 +202,7 @@ def dosim(dt):
              **dt)
 
 if __name__ == "__main__":
-    all_sims, combine_args = parse_sim_config(outdir)
+    all_sims, combine_args = parse_sim_config(outdir, overwrite=overwrite_sim_args)
 
     if incomplete:
         all_sims = fhu.trim_complete_sims(outdir, all_sims)
