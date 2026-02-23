@@ -16,8 +16,8 @@ args = parser.parse_args()
 outdir = args.outdir
 incomplete = args.incomplete
 
-def parse_sim_config(outdir, save_args=True):
-    conf_file = os.path.join(outdir, "sim_config.yaml")
+def parse_sim_config(yaml_dir, save_args=True):
+    conf_file = os.path.join(yaml_dir, "sim_config.yaml")
     with open(conf_file) as f:
         sim_config = yaml.safe_load(f)
 
@@ -160,34 +160,34 @@ def parse_sim_config(outdir, save_args=True):
                          **sim
                          })
 
-    all_sims = []
+    all_sim_args = []
     for pointing in pointings:
         for sim in sims:
-            all_sims.append({
+            all_sim_args.append({
                 **pointing,
                 **sim
             })
 
     if "combine_sim" in sim_config:
-        combine_args = {"combine": True,
+        combine_sim_args = {"combine": True,
                         "seed": seed}
     else:
-        combine_args = {"combine": False}
+        combine_sim_args = {"combine": False}
 
     if save_args:
         save_sim_args_list = []
-        for d in all_sims:
+        for d in all_sim_args:
             info = d.copy()
             info.pop("star_input", None)
             info.pop("gal_input", None)
             save_sim_args_list.append(info)
 
-        with open(os.path.join(outdir, "sim_args.yaml"), "w") as f:
+        with open(os.path.join(yaml_dir, "sim_args.yaml"), "w") as f:
             yaml.dump(save_sim_args_list, f)
 
         del save_sim_args_list
 
-    return all_sims, combine_args
+    return all_sim_args, combine_sim_args
 
 def dosim(dt):
     mk_grism(output_dir = outdir,
@@ -197,7 +197,7 @@ if __name__ == "__main__":
     all_sims, combine_args = parse_sim_config(outdir)
 
     if incomplete:
-        all_sims = fhu.trim_complete_sims(all_sims)
+        all_sims = fhu.trim_complete_sims(outdir, all_sims)
 
     with Pool(processes=80) as pool:
         res = pool.map(dosim, all_sims)
