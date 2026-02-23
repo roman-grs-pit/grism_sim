@@ -185,7 +185,8 @@ def parse_sim_config(yaml_dir, save_args=True, overwrite=False):
             save_sim_args_list.append(info)
 
         # if file exists, consider appending
-        if overwrite or not os.path.exists(sim_args_path := os.path.join(yaml_dir, "sim_args.yaml")):
+        sim_args_path = os.path.join(yaml_dir, "sim_args.yaml")
+        if overwrite or not os.path.exists(sim_args_path):
             with open(sim_args_path, "w") as f:
                 yaml.dump(save_sim_args_list, f)
         else:
