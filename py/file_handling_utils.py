@@ -18,40 +18,25 @@ def naming_conventions(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det, extra_ref_name=
 
     return filenames
 
-def is_complete_ref(path):
+def is_complete(path, is_ref=False):
     """Checks if a Grism Sim file is complete"""
 
     # see if it's exists
     if not os.path.exists(path):
         return False
 
-    # open it up
-    with fits.open(path) as hdul:
-
-        # if the IMAGE HDU doesn't exist or is empty, it's probably incomplete
-        if "IMAGE" not in hdul:
-            return False
-        elif not np.any(hdul["IMAGE"].data):
-            return False
-
-    # if it exists, it has the IMAGE HDU, and the IMAGE HDU has something, it's probably complete
-    return True
-
-def is_complete(path):
-    """Checks if a Grism Sim file is complete"""
-
-    # see if it's exists
-    if not os.path.exists(path):
+    # open it up, and check for data; any data is assumed to be good
+    try:
+        with fits.open(path) as hdul:
+            if is_ref:
+                data = hdul["IMAGE"].data
+            else:
+                data = hdul["MODEL"].data
+            if data is None or not np.any(data):
+                return False
+    # if reading/accessing the data is a problem, throw the file away and start again
+    except (TypeError, KeyError, ValueError, OSError, EOFError, IndexError, fits.VerifyError, fits.HeaderError):
         return False
-
-    # open it up
-    with fits.open(path) as hdul:
-
-        # if the MODEL HDU doesn't exist or is empty, it's probably incomplete
-        if "MODEL" not in hdul:
-            return False
-        elif not np.any(hdul["MODEL"].data):
-            return False
 
     # if it exists, it has the MODEL HDU, and the MODEL HDU has something, it's probably complete
     return True

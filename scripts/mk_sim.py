@@ -208,7 +208,7 @@ def combine_grisms(dt) -> None:
     return None
 
 def combine_refs(dt) -> None:
-    if fhu.is_complete_ref(os.path.join(outdir, dt[0] + ".fits")):
+    if fhu.is_complete(os.path.join(outdir, dt[0] + ".fits"), is_ref=True):
         return None
     ciu.combine_refs(outdir, *dt)
     return None
