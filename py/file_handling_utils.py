@@ -35,7 +35,7 @@ def is_complete(path, is_ref=False):
             if data is None or not np.any(data):
                 return False
     # if reading/accessing the data is a problem, throw the file away and start again
-    except (TypeError, KeyError, ValueError, OSError, EOFError, IndexError, fits.VerifyError, fits.HeaderError):
+    except (TypeError, KeyError, ValueError, OSError, EOFError, IndexError, fits.VerifyError):
         return False
 
     # if it exists, it has the MODEL HDU, and the MODEL HDU has something, it's probably complete
