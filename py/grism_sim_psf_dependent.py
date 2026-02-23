@@ -4,12 +4,8 @@ import h5py
 import numpy as np
 from scipy import signal
 from astropy.io import fits
-from astropy.table import Table#, join
-# from astropy.wcs import WCS
-# from astropy import units as u
-# from astropy.coordinates import SkyCoord
+from astropy.table import Table
 import os
-# import matplotlib.pyplot as plt
 # Spectra tools
 import pysynphot as S
 
@@ -18,6 +14,7 @@ import grizli.fake_image
 
 import image_utils as iu
 import psf_grid_utils as pgu
+import file_handling_utils as fhu
 
 import yaml
 
@@ -177,9 +174,11 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     full_model_noiseless = np.zeros((tot_im_size, tot_im_size))
     full_ref = np.zeros((tot_im_size, tot_im_size))
 
-    fn_root = 'refimage_ra%s_dec%s_pa%s_det%s' % (wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det)
-    fn_root += extra_ref_name
-    empty_direct_fits_out_nopad = os.path.join(output_dir,fn_root+'_nopad.fits')
+    names = fhu.naming_conventions(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det)
+    fn_root_ref = names["fn_ref"]
+    fn_root_grism = names["fn_grism"]
+
+    empty_direct_fits_out_nopad = os.path.join(output_dir,fn_root_ref+'_nopad.fits')
 
     phdu = fits.PrimaryHDU(data=full_model_noiseless)
     phdu.header["INSTRUME"] = 'ROMAN   '
@@ -202,8 +201,6 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     hdul.writeto(empty_direct_fits_out_nopad, overwrite=True)
 
     # Save empty grism fits
-    fn_root_grism = 'grism_ra%s_dec%s_pa%s_det%s' % (wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det)
-    fn_root_grism += extra_grism_name 
     empty_grism = os.path.join(output_dir, 'empty_'+fn_root_grism+'.fits')
     h, _ = grizli.fake_image.roman_header(ra=ra, dec=dec, pa_aper=wfi_cen_pa, naxis=(4088,4088))
     grizli.fake_image.make_fake_image(h, output=empty_grism, exptime=EXPTIME, nexp=NEXP, background=background)
@@ -617,7 +614,7 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
         hdu_list.append(fits.ImageHDU(data=full_ref[gpad:-gpad, gpad:-gpad],name='IMAGE'))
     else:
         hdu_list.append(fits.ImageHDU(data=full_ref,name='IMAGE'))
-    out_fn = os.path.join(output_dir, fn_root+'.fits')
+    out_fn = os.path.join(output_dir, fn_root_ref+'.fits')
     hdu_list.writeto(out_fn, overwrite=True)
     hdu_list.close()
     print('wrote to '+out_fn)
