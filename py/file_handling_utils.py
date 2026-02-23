@@ -18,6 +18,25 @@ def naming_conventions(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det, extra_ref_name=
 
     return filenames
 
+def is_complete(path):
+    """Checks if a Grism Sim file is complete"""
+
+    # see if it's exists
+    if not os.path.exists(path):
+        return False
+
+    # open it up
+    with fits.open(path) as hdul:
+
+        # if the MODEL HDU doesn't exist or is empty, it's probably incomplete
+        if "MODEL" not in hdul:
+            return False
+        elif not np.any(hdul["MODEL"].data):
+            return False
+
+    # if it exists, it has the MODEL HDU, and the MODEL HDU has something, it's probably complete
+    return True
+
 def trim_complete_sims(outdir, all_sims):
     """Check which files were completed, and trim them out of the sims to be run"""
 
@@ -29,24 +48,17 @@ def trim_complete_sims(outdir, all_sims):
         det = "SCA{:02}".format(sim["det_num"])
         names = naming_conventions(sim["wfi_cen_ra"], sim["wfi_cen_dec"], sim["wfi_cen_pa"],
                                    det, sim["extra_ref_name"], sim["extra_grism_name"])
-        fn_grism = names["fn_grism"]
 
-        # if the file doesn't exist, add it to trimmed_sims and move on
-        if not os.path.exists(fn_path := os.path.join(outdir, fn_grism)):
-            trimmed_sims.append(sim)
+        combined_fn = os.path.join(outdir, names["fn_grism_base"] + ".fits")
+        partial_fn = os.path.join(outdir, names["fn_grism"] + ".fits")
+
+        # check combined and partial file for completeness.
+        if is_complete(combined_fn) or is_complete(partial_fn):
             continue
 
-        # open the file, and check if it's probably complete
-        incomplete_file = False
-        with fits.open(fn_path) as hdul:
-            if "MODEL" not in hdul:
-                incomplete_file = True
-            elif not np.any(hdul["MODEL"].data):
-                incomplete_file = True
-
-        # If it's incomplete, add its args to trimmed_sim and delete it
-        if incomplete_file:
-            trimmed_sims.append(sim)
-            os.remove(fn_path)
+        # if it's not complete, add it to the to-do list and delete any file remnants
+        trimmed_sims.append(sim)
+        if os.path.exists(partial_fn):
+            os.remove(partial_fn)
 
     return trimmed_sims

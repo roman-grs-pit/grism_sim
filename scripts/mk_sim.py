@@ -13,10 +13,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument("outdir")
 parser.add_argument("--incomplete", action="store_true")
 parser.add_argument("--overwrite_sim_args", action="store_true", default=False)
+parser.add_argument("--nprocesses", type=int, default=80)
 args = parser.parse_args()
 outdir = args.outdir
-incomplete = args.incomplete
-overwrite_sim_args = args.overwrite_sim_args
 
 def parse_sim_config(yaml_dir, save_args=True, overwrite=False):
     conf_file = os.path.join(yaml_dir, "sim_config.yaml")
@@ -202,13 +201,19 @@ def dosim(dt):
     mk_grism(output_dir = outdir,
              **dt)
 
-if __name__ == "__main__":
-    all_sims, combine_args = parse_sim_config(outdir, overwrite=overwrite_sim_args)
+def combine_grisms(dt):
+    ciu.combine_sims(outdir, *dt, seed=combine_args["seed"])
 
-    if incomplete:
+def combine_refs(dt):
+    ciu.combine_refs(outdir, *dt)
+
+if __name__ == "__main__":
+    all_sims, combine_args = parse_sim_config(outdir, overwrite=args.overwrite_sim_args)
+
+    if args.incomplete:
         all_sims = fhu.trim_complete_sims(outdir, all_sims)
 
-    with Pool(processes=80) as pool:
+    with Pool(processes=args.nprocesses) as pool:
         res = pool.map(dosim, all_sims)
 
     if combine_args["combine"]:
@@ -217,7 +222,8 @@ if __name__ == "__main__":
         grouped_grisms = try_wait_loop(ciu.group_grism_files, outdir, all_sims)
         grouped_refs = try_wait_loop(ciu.group_ref_files, outdir, all_sims)
 
-        ciu.combine_sims(outdir, grouped_grisms, combine_args["seed"])
-        ciu.combine_refs(outdir, grouped_refs)
+        with Pool(processes=args.nprocesses) as pool:
+            pool.map(combine_grisms, grouped_grisms.items())
+            pool.map(combine_refs, grouped_refs.items())
 
     wrap_with_romanisim(outdir)
