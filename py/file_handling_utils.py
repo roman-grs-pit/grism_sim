@@ -1,6 +1,7 @@
 from astropy.io import fits
 import numpy as np
 import os
+from glob import glob
 
 def naming_conventions(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det, extra_ref_name='', extra_grism_name=''):
     """Gives the filenames for a set of parameters"""
@@ -68,7 +69,9 @@ def trim_complete_sims(outdir, all_sims):
 
         # if it's not complete, add it to the to-do list and delete any file remnants
         trimmed_sims.append(sim)
-        if os.path.exists(partial_fn):
-            os.remove(partial_fn)
+        fns = glob(os.path.join(outdir, "*" + names["fn_grism"] + "*.fits")) + \
+              glob(os.path.join(outdir, "*" + names["fn_ref"] + "*.fits"))
+        for fn in fns:
+            os.remove(fn)
 
     return trimmed_sims

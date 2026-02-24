@@ -133,11 +133,12 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
         dogal = 'n'
 
     checkpoint_counter = 0
-
     timings = {}
     timings[f"checkpoint_{checkpoint_counter}"] = time.time()
     print(f"checkpoint_{checkpoint_counter}")
     checkpoint_counter += 1
+
+    helper_files = []
 
     # * Read config
     conf_file = os.path.join(github_dir, "grism_sim/data/grizli_config.yaml")
@@ -199,6 +200,7 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     dhdu = fits.ImageHDU(data=np.zeros(full_model_noiseless.shape),name='DQ',header=phdu.header)
     hdul = fits.HDUList([phdu,ihdu,ehdu,dhdu])
     hdul.writeto(empty_direct_fits_out_nopad, overwrite=True)
+    helper_files.append(empty_direct_fits_out_nopad)
 
     # Save empty grism fits
     empty_grism = os.path.join(output_dir, 'empty_'+fn_root_grism+'.fits')
@@ -212,6 +214,7 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     file[0].header["DETNUM"] = (det_num, "Detector number, integer value only")
     file.writeto(empty_grism, overwrite=True)
     file.close()
+    helper_files.append(empty_grism)
 
     timings[f"checkpoint_{checkpoint_counter}"] = time.time()
     print(f"checkpoint_{checkpoint_counter}")
@@ -652,5 +655,9 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
         f.write("")
         for statement in timing_statements["other"]:
             f.write(f"{statement}\n")
+
+    print("Cleaning up helper files...")
+    for fn in helper_files:
+        os.remove(fn)
 
     return full_model_noiseless
