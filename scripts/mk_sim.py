@@ -76,13 +76,13 @@ def parse_sim_config(yaml_dir, save_args=True, overwrite=False):
         galaxies = None
 
     if sim_config["dither"] is None:
-        dither = {"ra": [0], "dec": [0]}
+        dither = {"ra": [None], "dec": [None]}
     elif isinstance(sim_config["dither"], (float, int)):
-        dither = {"ra": [0, sim_config["dither"]],
-                  "dec": [0, sim_config["dither"]]}
+        dither = {"ra": [None, sim_config["dither"]],
+                  "dec": [None, sim_config["dither"]]}
     else:
-        dither = {"ra": [0, sim_config["dither"]["ra"]],
-                  "dec": [0, sim_config["dither"]["dec"]]}
+        dither = {"ra": [None, sim_config["dither"]["ra"]],
+                  "dec": [None, sim_config["dither"]["dec"]]}
 
     if isinstance(sim_config["wfi_cen_ra"], (float, int)):
         wfi_cen_ra = [sim_config["wfi_cen_ra"]]
@@ -110,13 +110,12 @@ def parse_sim_config(yaml_dir, save_args=True, overwrite=False):
     pointings = []
     for ra in wfi_cen_ra:
         for dec in wfi_cen_dec:
-            for dither_ra, dither_dec in zip(dither["ra"], dither["dec"]):
-                ra += dither_ra
-                dec += dither_dec
-                for pa in wfi_cen_pa:
+            for pa in wfi_cen_pa:
+                for dith in dither:
                     pointings.append({"wfi_cen_ra": ra,
                                       "wfi_cen_dec": dec,
-                                      "wfi_cen_pa": pa})
+                                      "wfi_cen_pa": pa,
+                                      "dither": dith})
 
     sims = []
     seed = sim_config["seed"]

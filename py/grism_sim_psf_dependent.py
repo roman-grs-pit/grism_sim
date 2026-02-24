@@ -61,7 +61,7 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
              extra_grism_name='',extra_ref_name='',github_dir=github_dir_env,
              gal_mag_col='mag_F158_Av1.6523',dogal='y',magmax=25,
              mockdir='/global/cfs/cdirs/m4943/grismsim/galacticus_4deg2_mock/',
-             check_psf=False,conv_gal=True,use_tqdm=False,**kwargs):
+             check_psf=False,conv_gal=True,use_tqdm=False,dither=None,**kwargs):
     """
     Simulated Roman WFI Grism Image of objects in catalogs. Includes background and
     shot noise. Final fits file contains: PrimaryHDU, SCI, ERR, DQ, Noiseless Model
@@ -161,10 +161,20 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     if confdir is not None:
         conf = os.path.join(confdir, conf)
     
-    #this ends up setting the background noise and defines the WCS
+    # this ends up setting the background noise
     background = grizli_conf["grism_background"]
     EXPTIME = grizli_conf["GEXPTIME"] 
-    NEXP = 1     
+    NEXP = 1
+
+    # this applies a dither in terms of delta_x, delta_y pixels
+    if dither:
+        wfi = iu.get_wfi_siaf(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det_num)
+        if isinstance(dither, (int, float)):
+            dither_x_pixels, dither_y_pixels = [ii + 2044 for ii in [dither for jj in range(2)]]
+        else:
+            dither_x_pixels, dither_y_pixels = [ii + 2044 for ii in dither]
+        dither_ra, dither_dec = wfi.sci_to_sky(dither_x_pixels, dither_y_pixels)
+        wfi_cen_ra, wfi_cen_dec = dither_ra, dither_dec
 
     timings[f"checkpoint_{checkpoint_counter}"] = time.time()
     print(f"checkpoint_{checkpoint_counter}")
