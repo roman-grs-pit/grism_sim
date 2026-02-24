@@ -175,7 +175,8 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     full_model_noiseless = np.zeros((tot_im_size, tot_im_size))
     full_ref = np.zeros((tot_im_size, tot_im_size))
 
-    names = fhu.naming_conventions(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det)
+    names = fhu.naming_conventions(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det,
+                                   extra_grism_name=extra_grism_name, extra_ref_name=extra_ref_name)
     fn_root_ref = names["fn_ref"]
     fn_root_grism = names["fn_grism"]
 
@@ -206,14 +207,14 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     empty_grism = os.path.join(output_dir, 'empty_'+fn_root_grism+'.fits')
     h, _ = grizli.fake_image.roman_header(ra=ra, dec=dec, pa_aper=wfi_cen_pa, naxis=(4088,4088))
     grizli.fake_image.make_fake_image(h, output=empty_grism, exptime=EXPTIME, nexp=NEXP, background=background)
-    file = try_wait_loop(fits.open, empty_grism)
-    file[1].header["CONFFILE"] = os.path.join(github_dir, "grism_sim/data", conf)
-    file[0].header["WFICENRA"] = (wfi_cen_ra, "WFI Center RA")
-    file[0].header["WFICENDEC"] = (wfi_cen_dec, "WFI Center Declination")
-    file[0].header["WFICENPA"] = (wfi_cen_pa, "WFI Center PA")
-    file[0].header["DETNUM"] = (det_num, "Detector number, integer value only")
-    file.writeto(empty_grism, overwrite=True)
-    file.close()
+
+    with try_wait_loop(fits.open, empty_grism, mode="update") as file:
+        file[1].header["CONFFILE"] = os.path.join(github_dir, "grism_sim/data", conf)
+        file[0].header["WFICENRA"] = (wfi_cen_ra, "WFI Center RA")
+        file[0].header["WFICENDEC"] = (wfi_cen_dec, "WFI Center Declination")
+        file[0].header["WFICENPA"] = (wfi_cen_pa, "WFI Center PA")
+        file[0].header["DETNUM"] = (det_num, "Detector number, integer value only")
+        file.flush()
     helper_files.append(empty_grism)
 
     timings[f"checkpoint_{checkpoint_counter}"] = time.time()
@@ -592,34 +593,32 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     ISIM_SCI_DATA = full_model_poisson.astype(int)
 
     # Save model
-    hdu_list = fits.open(empty_grism)
-    if gpad != 0:
-        hdu_list["SCI"].data = SCI_DATA[gpad:-gpad, gpad:-gpad]
-        hdu_list['ERR'].data = np.sqrt((full_model_noiseless[gpad:-gpad, gpad:-gpad] + background) * EXPTIME) / EXPTIME
-        # hdu_list["DQ"] = 0 is already true and need not be set again
-        hdu_list.append(fits.ImageHDU(data=MODEL_DATA[gpad:-gpad, gpad:-gpad], name='MODEL'))
-        hdu_list.append(fits.ImageHDU(data=ISIM_SCI_DATA[gpad:-gpad, gpad:-gpad], name="ISIM_SCI"))
-    else:
-        hdu_list["SCI"].data = SCI_DATA
-        hdu_list['ERR'].data = np.sqrt((full_model_noiseless + background) * EXPTIME) / EXPTIME
-        # hdu_list["DQ"] = 0 is already true and need not be set again
-        hdu_list.append(fits.ImageHDU(data=MODEL_DATA, name='MODEL'))
-        hdu_list.append(fits.ImageHDU(data=ISIM_SCI_DATA, name="ISIM_SCI"))
-    
-    out_fn = os.path.join(output_dir, fn_root_grism+'.fits')
-    hdu_list.writeto(out_fn, overwrite=True)
-    hdu_list.close()
+    with try_wait_loop(fits.open, empty_grism) as hdu_list:
+        if gpad != 0:
+            hdu_list["SCI"].data = SCI_DATA[gpad:-gpad, gpad:-gpad]
+            hdu_list['ERR'].data = np.sqrt((full_model_noiseless[gpad:-gpad, gpad:-gpad] + background) * EXPTIME) / EXPTIME
+            # hdu_list["DQ"] = 0 is already true and need not be set again
+            hdu_list.append(fits.ImageHDU(data=MODEL_DATA[gpad:-gpad, gpad:-gpad], name='MODEL'))
+            hdu_list.append(fits.ImageHDU(data=ISIM_SCI_DATA[gpad:-gpad, gpad:-gpad], name="ISIM_SCI"))
+        else:
+            hdu_list["SCI"].data = SCI_DATA
+            hdu_list['ERR'].data = np.sqrt((full_model_noiseless + background) * EXPTIME) / EXPTIME
+            # hdu_list["DQ"] = 0 is already true and need not be set again
+            hdu_list.append(fits.ImageHDU(data=MODEL_DATA, name='MODEL'))
+            hdu_list.append(fits.ImageHDU(data=ISIM_SCI_DATA, name="ISIM_SCI"))
+
+        out_fn = os.path.join(output_dir, fn_root_grism+'.fits')
+        hdu_list.writeto(out_fn, overwrite=True)
     print('wrote to '+out_fn)
 
     # * save monochromatic direct image
-    hdu_list = fits.open(empty_direct_fits_out_nopad)
-    if gpad != 0:
-        hdu_list.append(fits.ImageHDU(data=full_ref[gpad:-gpad, gpad:-gpad],name='IMAGE'))
-    else:
-        hdu_list.append(fits.ImageHDU(data=full_ref,name='IMAGE'))
-    out_fn = os.path.join(output_dir, fn_root_ref+'.fits')
-    hdu_list.writeto(out_fn, overwrite=True)
-    hdu_list.close()
+    with try_wait_loop(fits.open, empty_direct_fits_out_nopad) as hdu_list:
+        if gpad != 0:
+            hdu_list.append(fits.ImageHDU(data=full_ref[gpad:-gpad, gpad:-gpad],name='IMAGE'))
+        else:
+            hdu_list.append(fits.ImageHDU(data=full_ref,name='IMAGE'))
+        out_fn = os.path.join(output_dir, fn_root_ref+'.fits')
+        hdu_list.writeto(out_fn, overwrite=True)
     print('wrote to '+out_fn)
 
     timings[f"checkpoint_{checkpoint_counter}"] = time.time()
