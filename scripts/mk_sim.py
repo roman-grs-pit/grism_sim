@@ -56,8 +56,9 @@ def parse_sim_config(yaml_dir, save_args=True, overwrite=False):
     assert "start" in sim_config["wfi_cen_pa"], msg
     assert isinstance(sim_config["wfi_cen_pa"]["rolls"], list), msg
 
-    msg = "dither must be null, int, float, or dictionary with x_pix & y_pix keys"
-    assert "dither" in sim_config, msg
+    dither_msg = (f"dither must be null, int, float, or dictionary with x_pix & y_pix keys\n"
+           "dither may also be a list of dictionaries with keys x_pix & y_pix")
+    assert "dither" in sim_config, dither_msg
 
     if len(sim_config["names_of_sims"]) > 1:
         for sim_num in sim_config["names_of_sims"]:
@@ -76,13 +77,24 @@ def parse_sim_config(yaml_dir, save_args=True, overwrite=False):
         galaxies = None
 
     if sim_config["dither"] is None:
-        dither = {"x_pix": [0], "y_pix": [0]}
+        dither = [{"x_pix": 0, "y_pix": 0}]
     elif isinstance(sim_config["dither"], (float, int)):
-        dither = {"x_pix": [0, sim_config["dither"]],
-                  "y_pix": [0, sim_config["dither"]]}
+        dither = [{"x_pix": 0, "y_pix": 0},
+                  {"x_pix": sim_config["dither"],
+                   "y_pix": sim_config["dither"]}]
+    elif isinstance(sim_config["dither"], dict):
+        dither = [{"x_pix": 0, "y_pix": 0},
+                  {"x_pix": sim_config["dither"]["x_pix"],
+                   "y_pix": sim_config["dither"]["y_pix"]}]
     else:
-        dither = {"x_pix": [0, sim_config["dither"]["x_pix"]],
-                  "y_pix": [0, sim_config["dither"]["y_pix"]]}
+        try:
+            dither = [{"x_pix": 0, "y_pix": 0}]
+            for dith in sim_config["dither"]:
+                dither.append({"x_pix": dith["x_pix"], "y_pix": dith["y_pix"]})
+        except TypeError as e:
+            print("in sim_config.yaml, dither variable was not set appropriately")
+            print(dither_msg)
+            raise e
 
     if isinstance(sim_config["wfi_cen_ra"], (float, int)):
         wfi_cen_ra = [sim_config["wfi_cen_ra"]]
