@@ -86,9 +86,9 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     det_num: int
         Detector Number
     star_input: astropy.table.Table
-        Table with columns 'RA', 'DEC', 'magnitude', 'star_template_index'
+        Astropy Table with columns 'RA', 'DEC', 'magnitude', 'star_template_index'
     gal_input: astropy.table.Table
-        Table with columns 
+        Astropy Table with columns
     output_dir: str
         Path to directory for output
     extra_grism_name: str, optional
@@ -96,7 +96,7 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     extra_ref_name: str, optional
         Appended to empty reference fits file
     github_dir: str, optional
-        Path to directory containing all GRS PIT Github repos. 
+        Path to directory containing all GRS PIT GitHub repos.
         default: reads environment variable
     gal_mag_col: str, optional
         Name of the column in the gal_input catalog wih magnitude information
@@ -118,8 +118,9 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     use_tqdm: bool, optional
         Show tqdm progress bar during simulation. Reccomend set to False when 
         running sbatch jobs on NERSC. default: False
-    seed: int, optional
-        Numpy rng seed for noise. default: 3
+    dither: dict, optional
+        Dictionary with keys "x_pix" and "y_pix" and values in pixel
+        coordinates.
     """
     #wfi_cen_ra,wfi_cen_dec correspond to the coordinates (in degrees) of the middle of the field (not the detector center)
     #wfi_cen_pa is the position angle (in degrees), relative to lines of ra=constant; note, requires +60 on wfi_cen_pa for wfi_sky_pointing
@@ -127,14 +128,13 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     #star_input is a table or array with columns 'RA', 'DEC', 'magnitude', 'star_template_index'
     #gal_input is a table or array with columns...
     #output_dir is the directory for output
-    #psf_cutout_size is the size in pixels used to determine the psf and then all of the image stamps that get added together
+    #psf_cutout_size is the size in pixels used to determine the psf and then all the image stamps that get added together
     
     if gal_input is None:
         dogal = 'n'
 
     checkpoint_counter = 0
-    timings = {}
-    timings[f"checkpoint_{checkpoint_counter}"] = time.time()
+    timings = {f"checkpoint_{checkpoint_counter}": time.time()}
     print(f"checkpoint_{checkpoint_counter}")
     checkpoint_counter += 1
 
@@ -167,12 +167,10 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     NEXP = 1
 
     # this applies a dither in terms of delta_x, delta_y pixels
-    if dither:
+    if (dither["x_pix"] != 0) or (dither["y_pix"] != 0):
         wfi = iu.get_wfi_siaf(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det_num)
-        if isinstance(dither, (int, float)):
-            dither_x_pixels, dither_y_pixels = [ii + 2044 for ii in [dither for jj in range(2)]]
-        else:
-            dither_x_pixels, dither_y_pixels = [ii + 2044 for ii in dither]
+        dither_x_pixels = dither["x_pix"] + 2044
+        dither_y_pixels = dither["y_pix"] + 2044
         dither_ra, dither_dec = wfi.sci_to_sky(dither_x_pixels, dither_y_pixels)
         wfi_cen_ra, wfi_cen_dec = dither_ra, dither_dec
 
@@ -346,7 +344,7 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
             photid = jj+1
 
             # STAR DIRECT
-            # direct read of characteristics
+            # read of characteristics
             xpos = stars[jj]['det_x']
             ypos = stars[jj]['det_y']
             mag = stars[jj]['magnitude']
@@ -465,7 +463,7 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
                 row = gals[jj]
 
                 # GAL DIRECT
-                # direct read of characteristics
+                # read of characteristics
                 xpos = row['det_x']
                 ypos = row['det_y']
                 mag = row['mag']

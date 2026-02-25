@@ -56,7 +56,7 @@ def parse_sim_config(yaml_dir, save_args=True, overwrite=False):
     assert "start" in sim_config["wfi_cen_pa"], msg
     assert isinstance(sim_config["wfi_cen_pa"]["rolls"], list), msg
 
-    msg = "dither must be null, int, float, or dictionary with ra & dec keys"
+    msg = "dither must be null, int, float, or dictionary with x_pix & y_pix keys"
     assert "dither" in sim_config, msg
 
     if len(sim_config["names_of_sims"]) > 1:
@@ -76,13 +76,13 @@ def parse_sim_config(yaml_dir, save_args=True, overwrite=False):
         galaxies = None
 
     if sim_config["dither"] is None:
-        dither = {"ra": [None], "dec": [None]}
+        dither = {"x_pix": [0], "y_pix": [0]}
     elif isinstance(sim_config["dither"], (float, int)):
-        dither = {"ra": [None, sim_config["dither"]],
-                  "dec": [None, sim_config["dither"]]}
+        dither = {"x_pix": [0, sim_config["dither"]],
+                  "y_pix": [0, sim_config["dither"]]}
     else:
-        dither = {"ra": [None, sim_config["dither"]["ra"]],
-                  "dec": [None, sim_config["dither"]["dec"]]}
+        dither = {"x_pix": [0, sim_config["dither"]["x_pix"]],
+                  "y_pix": [0, sim_config["dither"]["y_pix"]]}
 
     if isinstance(sim_config["wfi_cen_ra"], (float, int)):
         wfi_cen_ra = [sim_config["wfi_cen_ra"]]
