@@ -9,13 +9,22 @@ import yaml
 import argparse
 import file_handling_utils as fhu
 
+from pprint import pprint
+
 parser = argparse.ArgumentParser()
 parser.add_argument("outdir")
-parser.add_argument("--incomplete", action="store_true")
+parser.add_argument("--incomplete", action="store_true", default=False)
+parser.add_argument("--overwrite", action="store_true", default=False)
 parser.add_argument("--overwrite_sim_args", action="store_true", default=False)
+parser.add_argument("--fail_if_outputs_exist", action="store_true", default=True)
 parser.add_argument("--nprocesses", type=int, default=80)
 args = parser.parse_args()
 outdir = args.outdir
+
+if args.incomplete or args.overwrite:
+    args.fail_if_outputs_exist = False
+
+assert not (args.incomplete and args.overwrite),  "Cannot use both --incomplete and --overwrite flags."
 
 def parse_sim_config(yaml_dir, save_args=True, overwrite=False):
     conf_file = os.path.join(yaml_dir, "sim_config.yaml")
@@ -180,9 +189,9 @@ def parse_sim_config(yaml_dir, save_args=True, overwrite=False):
                 **sim
             })
 
-    if "combine_sim" in sim_config:
-        combine_sim_args = {"combine": True,
-                        "seed": seed}
+    if "combine_sims" in sim_config:
+        combine_sim_args = {"combine": sim_config["combine_sims"],
+                            "seed": seed}
     else:
         combine_sim_args = {"combine": False}
 
@@ -226,8 +235,25 @@ def combine_refs(dt) -> None:
     return None
 
 if __name__ == "__main__":
+
     all_sims, combine_args = parse_sim_config(outdir, overwrite=args.overwrite_sim_args)
 
+    if args.overwrite:
+        print("Empyting output directory...")
+        fhu.empty_directory(outdir, all_sims)
+    else:
+        print("Cleaning helper files...")
+        fhu.clean_helpers(outdir, all_sims)
+
+    if args.incomplete:
+        print("Trimming complete simulations...")
+        all_sims = fhu.trim_complete_sims(outdir, all_sims)
+
+    elif args.fail_if_outputs_exists:
+        res = fhu.check_empty_directory(outdir, all_sims)
+        if res is not None:
+            pprint(res)
+            raise RuntimeError("Output directory contains output files already.")
 
     if args.incomplete:
         print("Trimming complete simulations...")

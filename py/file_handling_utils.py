@@ -3,7 +3,7 @@ import numpy as np
 import os
 from glob import glob
 
-def naming_conventions(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det, extra_ref_name='', extra_grism_name=''):
+def naming_conventions(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det, extra_ref_name='', extra_grism_name='') -> dict:
     """Gives the filenames for a set of parameters"""
 
     fn_ref_base = 'refimage_ra%s_dec%s_pa%s_det%s' % (wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det)
@@ -42,7 +42,7 @@ def is_complete(path, is_ref=False):
     # if it exists, it has the MODEL HDU, and the MODEL HDU has something, it's probably complete
     return True
 
-def trim_complete_sims(outdir, all_sims):
+def trim_complete_sims(outdir, all_sims) -> list:
     """Check which files were completed, and trim them out of the sims to be run"""
 
     trimmed_sims = []
@@ -75,3 +75,54 @@ def trim_complete_sims(outdir, all_sims):
             os.remove(fn)
 
     return trimmed_sims
+
+def empty_directory(outdir, all_sims) -> None:
+    """Removes all files related to sime about ot be run."""
+
+    for sim in all_sims:
+
+        det = "SCA{:02}".format(sim["det_num"])
+        names = naming_conventions(sim["wfi_cen_ra"], sim["wfi_cen_dec"], sim["wfi_cen_pa"],
+                                   det, sim["extra_ref_name"], sim["extra_grism_name"])
+
+        fns = glob(os.path.join(outdir, "*" + names["fn_grism_base"] + "*.fits")) + \
+            glob(os.path.join(outdir, "*" + names["fn_ref_base"] + "*.fits"))
+        for fn in fns:
+            os.remove(fn)
+
+    return None
+
+def check_empty_directory(outdir, all_sims) -> None | list:
+    """Checks whether files related to sims about to be run exists."""
+
+    potential_overlaps = []
+    for sim in all_sims:
+
+        det = "SCA{:02}".format(sim["det_num"])
+        names = naming_conventions(sim["wfi_cen_ra"], sim["wfi_cen_dec"], sim["wfi_cen_pa"],
+                                   det, sim["extra_ref_name"], sim["extra_grism_name"])
+
+        fns = glob(os.path.join(outdir, "*" + names["fn_grism_base"] + "*.fits")) + \
+            glob(os.path.join(outdir, "*" + names["fn_ref_base"] + "*.fits"))
+        for fn in fns:
+            potential_overlaps.append(fn)
+
+    if len(potential_overlaps) > 0:
+        return potential_overlaps
+
+    return None
+
+def clean_helpers(outdir, all_sims) -> None:
+    """Removes helper files related to sims about to be run."""
+
+    for sim in all_sims:
+
+        det = "SCA{:02}".format(sim["det_num"])
+        names = naming_conventions(sim["wfi_cen_ra"], sim["wfi_cen_dec"], sim["wfi_cen_pa"],
+                                   det, sim["extra_ref_name"], sim["extra_grism_name"])
+
+        fns = glob(os.path.join(outdir, "empty*" + names["fn_grism_base"] + "*.fits")) + \
+            glob(os.path.join(outdir, "empty*" + names["fn_ref_base"] + "*.fits"))
+
+        for fn in fns:
+            os.remove(fn)
