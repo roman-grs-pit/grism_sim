@@ -1,3 +1,4 @@
+from file_handling_utils import naming_conventions
 from grism_sim_psf_dependent import mk_grism, try_wait_loop
 from wrap_with_romanisim import wrap_with_romanisim
 from multiprocessing import Pool
@@ -17,6 +18,7 @@ parser.add_argument("--incomplete", action="store_true", default=False)
 parser.add_argument("--overwrite", action="store_true", default=False)
 parser.add_argument("--overwrite_sim_args", action="store_true", default=False)
 parser.add_argument("--fail_if_outputs_exist", action="store_true", default=True)
+parser.add_argument("--check_duplicate_names", action="store_true", default=False)
 parser.add_argument("--nprocesses", type=int, default=80)
 args = parser.parse_args()
 outdir = args.outdir
@@ -255,6 +257,11 @@ if __name__ == "__main__":
         if res is not None:
             pprint(res)
             raise RuntimeError("Output directory contains output files already.")
+
+    if args.check_duplicate_names:
+        if fhu.check_name_availability(all_sims):
+            raise RuntimeError("Duplicate names detected.")
+
 
     print("Making grisms...")
     with Pool(processes=args.nprocesses) as pool:

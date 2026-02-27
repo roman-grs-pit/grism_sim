@@ -8,10 +8,12 @@ from functools import cache
 def naming_conventions(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det, extra_ref_name='', extra_grism_name='') -> dict:
     """Gives the filenames for a set of parameters"""
 
-    fn_ref_base = 'refimage_ra%s_dec%s_pa%s_det%s' % (wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det)
+    fn_ref_base = 'refimage_ra{:.3f}_dec{:.3f}_pa{:.3f}_det{}'.format(
+        wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det)
     fn_ref_full = fn_ref_base + extra_ref_name
 
-    fn_grism_base = 'grism_ra%s_dec%s_pa%s_det%s' % (wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det)
+    fn_grism_base = 'grism_ra{:.3f}_dec{:.3f}_pa{:.3f}_det{}'.format(
+        wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det)
     fn_grism_full = fn_grism_base + extra_grism_name
 
     filenames = {"fn_ref": fn_ref_full,
@@ -128,3 +130,32 @@ def clean_helpers(outdir, all_sims) -> None:
 
         for fn in fns:
             os.remove(fn)
+
+
+def check_name_availability(all_sims) -> bool:
+    names = []
+    for sim in all_sims:
+        names.append(naming_conventions(sim["wfi_cen_ra"],
+                                        sim["wfi_cen_dec"],
+                                        sim["wfi_cen_pa"],
+                                        f"SCA{sim['det_num']:02}"))
+    if len(set(names)) < len(names):
+        print("Some names not unique!")
+
+        # Source - https://stackoverflow.com/a/9835819
+        # Posted by georg, modified by community. See post 'Timeline' for change history
+        # Retrieved 2026-02-27, License - CC BY-SA 4.0
+        seen = set()
+        dupes = set()
+
+        for x in names:
+            if x in seen:
+                dupes.add(x)
+            else:
+                seen.add(x)
+
+        pprint(dupes)
+
+        return True
+
+    return False
