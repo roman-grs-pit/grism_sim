@@ -257,11 +257,11 @@ if __name__ == "__main__":
 
     if args.incomplete:
         print("Trimming complete simulations...")
-        all_sims = fhu.trim_complete_sims(outdir, all_sims)
+        trimmed_sims = fhu.trim_complete_sims(outdir, all_sims)
 
     print("Making grisms...")
     with Pool(processes=args.nprocesses) as pool:
-        pool.map(dosim, all_sims)
+        pool.map(dosim, trimmed_sims)
 
     if combine_args["combine"]:
 
