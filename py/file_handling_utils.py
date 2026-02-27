@@ -3,6 +3,7 @@ import numpy as np
 import os
 from glob import glob
 from functools import cache
+from pprint import pprint
 
 @cache
 def naming_conventions(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det, extra_ref_name='', extra_grism_name='') -> dict:
