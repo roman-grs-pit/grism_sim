@@ -213,6 +213,7 @@ def dosim(dt) -> None:
              **dt)
 
 def combine_grisms(dt) -> None:
+    print(dt[0])
     if fhu.is_complete(os.path.join(outdir, dt[0] + ".fits")):
         return None
     ciu.combine_sims(outdir, *dt, seed=combine_args["seed"])
@@ -227,18 +228,23 @@ def combine_refs(dt) -> None:
 if __name__ == "__main__":
     all_sims, combine_args = parse_sim_config(outdir, overwrite=args.overwrite_sim_args)
 
+
     if args.incomplete:
+        print("Trimming complete simulations...")
         all_sims = fhu.trim_complete_sims(outdir, all_sims)
 
+    print("Making grisms...")
     with Pool(processes=args.nprocesses) as pool:
         pool.map(dosim, all_sims)
 
     if combine_args["combine"]:
 
+        print("Grouping grisms...")
         # group files; wrapped in try_wait_loop for NERSC timing/race issue
         grouped_grisms = try_wait_loop(ciu.group_grism_files, outdir, all_sims)
         grouped_refs = try_wait_loop(ciu.group_ref_files, outdir, all_sims)
 
+        print("Combining grisms...")
         # use half of nprocesses for ref_combination; use remainder for grisms
         ref_proc = args.nprocesses // 2
         with Pool(processes=args.processe - ref_proc) as grism_pool, Pool(processes=ref_proc) as ref_pool:
@@ -247,4 +253,5 @@ if __name__ == "__main__":
             grism_res.wait()
             ref_res.wait()
 
+    print("Wrapping with Roman I-Sim...")
     wrap_with_romanisim(outdir)
