@@ -1,4 +1,4 @@
-from grism_sim_psf_dependent import mk_grism, try_wait_loop
+from grism_sim_new_galacticus import mk_grism, try_wait_loop
 from wrap_with_romanisim import wrap_with_romanisim
 from multiprocessing import Pool
 import combine_img_utils as ciu
@@ -140,9 +140,9 @@ def parse_sim_config(yaml_dir, save_args=True, overwrite=False):
             if "galaxy_mag_cutoff" in sim and galaxies is not None:
                 cutoffs = sim.pop("galaxy_mag_cutoff")
                 if "brighter_than" in cutoffs:
-                    sel &= galaxies["mag_F158_Av1.6523"] <= cutoffs["brighter_than"]
+                    sel &= galaxies["mag_F158_app"] <= cutoffs["brighter_than"]
                 if "fainter_than" in cutoffs:
-                    sel &= galaxies["mag_F158_Av1.6523"] > cutoffs["fainter_than"]
+                    sel &= galaxies["mag_F158_app"] > cutoffs["fainter_than"]
             catalogs["gal_input"] = galaxies[sel]
 
         scas = sim.pop("SCAs")
