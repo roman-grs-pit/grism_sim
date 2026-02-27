@@ -222,7 +222,6 @@ def dosim(dt) -> None:
              **dt)
 
 def combine_grisms(dt) -> None:
-    print(dt[0])
     if fhu.is_complete(os.path.join(outdir, dt[0] + ".fits")):
         return None
     ciu.combine_sims(outdir, *dt, seed=combine_args["seed"])
