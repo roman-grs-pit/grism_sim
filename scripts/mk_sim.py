@@ -251,7 +251,7 @@ if __name__ == "__main__":
     else:
         trimmed_sims = all_sims
 
-    if args.fail_if_outputs_exists:
+    if args.fail_if_outputs_exist:
         res = fhu.check_empty_directory(outdir, all_sims)
         if res is not None:
             pprint(res)
