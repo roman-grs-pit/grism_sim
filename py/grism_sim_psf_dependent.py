@@ -167,12 +167,13 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
     NEXP = 1
 
     # this applies a dither in terms of delta_x, delta_y pixels
-    if (dither["x_pix"] != 0) or (dither["y_pix"] != 0):
-        wfi = iu.get_wfi_siaf(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det_num)
-        dither_x_pixels = dither["x_pix"] + 2044
-        dither_y_pixels = dither["y_pix"] + 2044
-        dither_ra, dither_dec = wfi.sci_to_sky(dither_x_pixels, dither_y_pixels)
-        wfi_cen_ra, wfi_cen_dec = dither_ra, dither_dec
+    if dither is not None:
+        if (dither["x_pix"] != 0) or (dither["y_pix"] != 0):
+            wfi = iu.get_wfi_siaf(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det_num)
+            dither_x_pixels = dither["x_pix"] + 2044
+            dither_y_pixels = dither["y_pix"] + 2044
+            dither_ra, dither_dec = wfi.sci_to_sky(dither_x_pixels, dither_y_pixels)
+            wfi_cen_ra, wfi_cen_dec = dither_ra, dither_dec
 
     timings[f"checkpoint_{checkpoint_counter}"] = time.time()
     print(f"checkpoint_{checkpoint_counter}")
@@ -322,7 +323,7 @@ def mk_grism(wfi_cen_ra,wfi_cen_dec,wfi_cen_pa,det_num,star_input,gal_input,outp
             psf_grid = pgu.load_psf_grid(psf_filename)
         except OSError as e:
             print("creating new PSF Grid")
-            pgu.save_one_grid(det_num, start_wave, psf_grid_data_write, half_fov_pixels=half_fov_pixels, **kwargs)
+            pgu.save_one_grid(det_num, start_wave, psf_grid_data_write, fov_pixels=half_fov_pixels*2, **kwargs)
             psf_grid = try_wait_loop(pgu.load_psf_grid, psf_filename)
         
         if check_psf:
