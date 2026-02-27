@@ -273,7 +273,7 @@ if __name__ == "__main__":
         print("Combining grisms...")
         # use half of nprocesses for ref_combination; use remainder for grisms
         ref_proc = args.nprocesses // 2
-        with Pool(processes=args.processe - ref_proc) as grism_pool, Pool(processes=ref_proc) as ref_pool:
+        with Pool(processes=args.nprocesses - ref_proc) as grism_pool, Pool(processes=ref_proc) as ref_pool:
             grism_res = grism_pool.map_async(combine_grisms, grouped_grisms.items())
             ref_res = ref_pool.map_async(combine_refs, grouped_refs.items())
             grism_res.wait()
