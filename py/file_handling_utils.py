@@ -2,7 +2,9 @@ from astropy.io import fits
 import numpy as np
 import os
 from glob import glob
+from functools import cache
 
+@cache
 def naming_conventions(wfi_cen_ra, wfi_cen_dec, wfi_cen_pa, det, extra_ref_name='', extra_grism_name='') -> dict:
     """Gives the filenames for a set of parameters"""
 
