@@ -258,6 +258,8 @@ if __name__ == "__main__":
     if args.incomplete:
         print("Trimming complete simulations...")
         trimmed_sims = fhu.trim_complete_sims(outdir, all_sims)
+    else:
+        trimmed_sims = all_sims
 
     print("Making grisms...")
     with Pool(processes=args.nprocesses) as pool:
