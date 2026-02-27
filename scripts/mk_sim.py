@@ -247,19 +247,15 @@ if __name__ == "__main__":
 
     if args.incomplete:
         print("Trimming complete simulations...")
-        all_sims = fhu.trim_complete_sims(outdir, all_sims)
+        trimmed_sims = fhu.trim_complete_sims(outdir, all_sims)
+    else:
+        trimmed_sims = all_sims
 
-    elif args.fail_if_outputs_exists:
+    if args.fail_if_outputs_exists:
         res = fhu.check_empty_directory(outdir, all_sims)
         if res is not None:
             pprint(res)
             raise RuntimeError("Output directory contains output files already.")
-
-    if args.incomplete:
-        print("Trimming complete simulations...")
-        trimmed_sims = fhu.trim_complete_sims(outdir, all_sims)
-    else:
-        trimmed_sims = all_sims
 
     print("Making grisms...")
     with Pool(processes=args.nprocesses) as pool:
