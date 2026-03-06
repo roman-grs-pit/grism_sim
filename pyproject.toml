@@ -22,3 +22,7 @@ where = ["py"]
 
 [tool.setuptools.package-dir]
 "" = "py"
+
+[project.scripts]
+wrap-with-romanisim = "wrap_with_romanisim:main"
+mk-sim = "mksim:main"

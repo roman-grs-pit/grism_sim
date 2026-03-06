@@ -9,14 +9,6 @@ import yaml
 import argparse
 import file_handling_utils as fhu
 
-parser = argparse.ArgumentParser()
-parser.add_argument("outdir")
-parser.add_argument("--incomplete", action="store_true")
-parser.add_argument("--overwrite_sim_args", action="store_true", default=False)
-parser.add_argument("--nprocesses", type=int, default=80)
-args = parser.parse_args()
-outdir = args.outdir
-
 def parse_sim_config(yaml_dir, save_args=True, overwrite=False):
     conf_file = os.path.join(yaml_dir, "sim_config.yaml")
     with open(conf_file) as f:
@@ -197,43 +189,57 @@ def parse_sim_config(yaml_dir, save_args=True, overwrite=False):
 
     return all_sim_args, combine_sim_args
 
-def dosim(dt) -> None:
+def dosim(dt, outdir) -> None:
     mk_grism(output_dir = outdir,
              **dt)
 
-def combine_grisms(dt) -> None:
+def combine_grisms(dt, combine_args, outdir) -> None:
     if fhu.is_complete(os.path.join(outdir, dt[0] + ".fits")):
         return None
     ciu.combine_sims(outdir, *dt, seed=combine_args["seed"])
     return None
 
-def combine_refs(dt) -> None:
+def combine_refs(dt, outdir) -> None:
     if fhu.is_complete(os.path.join(outdir, dt[0] + ".fits"), is_ref=True):
         return None
     ciu.combine_refs(outdir, *dt)
     return None
 
-if __name__ == "__main__":
+def main():
+    from functools import partial
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("outdir")
+    parser.add_argument("--incomplete", action="store_true")
+    parser.add_argument("--overwrite_sim_args", action="store_true", default=False)
+    parser.add_argument("--nprocesses", type=int, default=80)
+    args = parser.parse_args()
+    outdir = args.outdir
+
     all_sims, combine_args = parse_sim_config(outdir, overwrite=args.overwrite_sim_args)
 
     if args.incomplete:
         all_sims = fhu.trim_complete_sims(outdir, all_sims)
 
     with Pool(processes=args.nprocesses) as pool:
-        pool.map(dosim, all_sims)
+        pool.map(partial(dosim, outdir=outdir), all_sims)
 
     if combine_args["combine"]:
-
         # group files; wrapped in try_wait_loop for NERSC timing/race issue
         grouped_grisms = try_wait_loop(ciu.group_grism_files, outdir, all_sims)
         grouped_refs = try_wait_loop(ciu.group_ref_files, outdir, all_sims)
 
         # use half of nprocesses for ref_combination; use remainder for grisms
         ref_proc = args.nprocesses // 2
-        with Pool(processes=args.processe - ref_proc) as grism_pool, Pool(processes=ref_proc) as ref_pool:
-            grism_res = grism_pool.map_async(combine_grisms, grouped_grisms.items())
-            ref_res = ref_pool.map_async(combine_refs, grouped_refs.items())
+        with Pool(processes=args.processes - ref_proc) as grism_pool, Pool(processes=ref_proc) as ref_pool:
+            grism_res = grism_pool.map_async(partial(combine_grisms, combine_args = combine_args, outdir=outdir),
+                                             grouped_grisms.items())
+            ref_res = ref_pool.map_async(partial(combine_refs, outdir=outdir),
+                                         grouped_refs.items())
             grism_res.wait()
             ref_res.wait()
 
     wrap_with_romanisim(outdir)
+
+if __name__ == "__main__":
+    main()
