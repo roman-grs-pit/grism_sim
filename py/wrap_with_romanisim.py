@@ -78,11 +78,11 @@ def wrap_with_romanisim(outdir):
     with Pool(processes=80) as pool:
         pool.map(fits_to_asdf_wrapper, args_list)
 
-
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("outdir", type=str, help="Directory containing fits files to be converted")
-
     args = parser.parse_args()
-
     wrap_with_romanisim(args.outdir)
+
+if __name__ == "__main__":
+    main()
