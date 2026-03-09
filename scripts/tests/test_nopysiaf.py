@@ -207,8 +207,8 @@ phdu.header["EXPTIME"] = 141
 shp = cut_image.shape
 print('cut image shape: ', shp)
 print(shp[0]/2, shp[1]/2)
-phdu.header = iu.add_wcs(phdu, ra, dec, crpix2=shp[1]/2, crpix1=shp[0]/2,
-                         crota2=pa, naxis1=shp[0], naxis2=shp[1])
+phdu.header = iu.add_wcs(phdu, ra, dec, crpix2=int(shp[1]/2), crpix1=int(shp[0]/2),
+                         crota2=pa, naxis1=int(shp[0]), naxis2=int(shp[1]))
 
 err = np.random.poisson(10, cut_image.shape)*0.001  # np.zeros(cut_image.shape)
 ihdu = fits.ImageHDU(data=cut_image, name='SCI', header=phdu.header)
