@@ -244,11 +244,11 @@ masked_seg = fits.open(nopad_seg)[0].data
 roman.seg = masked_seg.astype("float32")
 
 # simulate dispersed spectra
-sys.path.append(os.environ['github_dir']+'/galacticus_sed_calculator')
+# sys.path.append(os.environ['github_dir']+'/galacticus_sed_calculator')
 # setup
 unit = FlatLambdaCDM(H0=67.74, Om0=0.3089)
 sedTemplateFilename = '/global/cfs/cdirs/m4943/Galacticus/mockCatalogs/paper1Calibration_allUNIT_0.2degMock/nodePropertyExtractorSED_Nt50_NZ11_ageMinimum0.001.hdf5'
-sedCalc = sed.sed_calculator(sedTemplateFilename, cosmology=unit)
+sedCalc = sed(sedTemplateFilename, cosmology=unit)
 # wavelengths to produce sed over
 obs_wavelengths = np.linspace(0.5, 2.5, 1000)*u.micron
 high_res_wavelengths = np.linspace(1e4, 2e4, 5000)*u.angstrom
