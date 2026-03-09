@@ -5,30 +5,30 @@ export psf_grid_data_read=/dvs_ro/cfs/cdirs/m4943/grismsim/psf_grid_data
 export PYTHONPATH=$PYTHONPATH:$github_dir//grism_sim/py/:$github_dir/optical_model_tools/py/:$github_dir/psf_grids/py/:$github_dir/galacticus_sed_calculator/
 
 '''
-import psf_grid_utils as pgu  # needs to come after setting $psf_grid_data_read
-import pysynphot as S
-from galacticus_sed_calculator import SEDCalculator as sed
-from astropy.cosmology import FlatLambdaCDM
-import astropy.units as u
-from grizli import fake_image
-from scipy import signal
-from astropy.modeling.models import Sersic2D
-import image_utils as iu
-from optical_model_tools.v0_8 import optical_model
-import numpy as np
-from matplotlib import pyplot as plt
-from astropy.table import Table, join, vstack
-import os
-import sys
-from astropy.io import fits
-import h5py
-import glob
-from grizli.model import GrismFLT
-import grizli
-import yaml
-import tqdm
-import logging
 import time
+import logging
+import tqdm
+import yaml
+import grizli
+from grizli.model import GrismFLT
+import glob
+import h5py
+from astropy.io import fits
+import sys
+import os
+from astropy.table import Table, join, vstack
+from matplotlib import pyplot as plt
+import numpy as np
+from optical_model_tools.v0_8 import optical_model
+import image_utils as iu
+from astropy.modeling.models import Sersic2D
+from scipy import signal
+from grizli import fake_image
+import astropy.units as u
+from astropy.cosmology import FlatLambdaCDM
+from galacticus_sed_calculator import SEDCalculator as sed
+import pysynphot as S
+import psf_grid_utils as pgu  # needs to come after setting $psf_grid_data_read
 logname = 'grism_sim'
 logger = logging.getLogger(logname)
 logger.setLevel(logging.INFO)
