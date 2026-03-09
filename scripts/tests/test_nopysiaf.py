@@ -113,7 +113,8 @@ NEXP = 1
 
 gal_fpa = optmod.coords.calculate_fpa_pos(
     input_gals['RA'], input_gals['DEC'], tel_ra, tel_dec, pa)
-gal_xy_raw = optmod.coords.convert_fpa_to_sca(gal_fpa[0], gal_fpa[1], sca=det)
+gal_xy_raw = optmod.coords.convert_fpa_to_sca(
+    gal_fpa[0], gal_fpa[1], sca=det_num)
 gal_xy = (gal_xy_raw[0] + gpad, gal_xy_raw[1] + gpad)
 sel_ondet = gal_xy[0] > 0
 sel_ondet &= gal_xy[0] < 4088 + 2*(gpad)
@@ -253,7 +254,7 @@ for fname in gal_fns:
         gal_fpa = optmod.coords.calculate_fpa_pos(
             galt['RA'], galt['DEC'], tel_ra, tel_dec, pa)
         gal_xy_raw = optmod.coords.convertfpa_to_sca(
-            gal_fpa[0], gal_fpa[1], sca=det)
+            gal_fpa[0], gal_fpa[1], sca=det_num)
         gal_xy = (gal_xy_raw[0] + gpad, gal_xy_raw[1] + gpad)
 
         sel_ondet = gal_xy[0] > 0
