@@ -52,7 +52,7 @@ logger.addHandler(ch)
 # sys.path.append(os.environ['github_dir']+'/grism_sim/py')
 # sys.path.append(os.environ['github_dir']+'/psf_grids/py')
 # os.environ['psf_grid_data_read'] = "/dvs_ro/cfs/cdirs/m4943/grismsim/psf_grid_data"
-output_dir = os.environ['SCRATCH']+'/roman_test/'
+output_dir = os.environ['SCRATCH']+'/roman_test/nopysiaf/'
 
 optmod = optical_model.RomanOpticalModel()
 
@@ -96,6 +96,11 @@ det_num = 1
 tel_ra = 10.065
 tel_dec = 0.04
 pa = 0
+
+# get ra,dec at center of detector for wcs
+ra, dec = optmod.coords.convert_sca_to_sky(
+    2043, 2043, tel_ra, tel_dec, pa, det_num)
+
 psf_cutout_size = 365
 det = "SCA{:02}".format(det_num)
 
@@ -253,7 +258,7 @@ for fname in gal_fns:
     if galt is not None:
         gal_fpa = optmod.coords.calculate_fpa_pos(
             galt['RA'], galt['DEC'], tel_ra, tel_dec, pa)
-        gal_xy_raw = optmod.coords.convertfpa_to_sca(
+        gal_xy_raw = optmod.coords.convert_fpa_to_sca(
             gal_fpa[0], gal_fpa[1], sca=det_num)
         gal_xy = (gal_xy_raw[0] + gpad, gal_xy_raw[1] + gpad)
 
