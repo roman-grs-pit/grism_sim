@@ -318,7 +318,7 @@ for fname in gal_fns:
             flux = total_flux(high_res_wavelengths, flux_unit='FLAM')
 
             # roman.compute_model_orders(id=photid, mag=mag, compute_size=False, size=size, in_place=True, store=False,is_cgs=True, spectrum_1d=[high_res_wavelengths.value, flux.value])
-            roman.compute_model_orders(id=photid, mag=mag, compute_size=True, in_place=True,
+            roman.compute_model_orders(id=photid, mag=mag, compute_size=False, in_place=True,
                                        store=False, is_cgs=True, spectrum_1d=[high_res_wavelengths.value, flux.value])
         tf = time.time()
         logger.info(fname + ' finished; processed ' +
