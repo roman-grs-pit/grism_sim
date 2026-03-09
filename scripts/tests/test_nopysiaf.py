@@ -100,6 +100,8 @@ pa = 0
 # get ra,dec at center of detector for wcs
 ra, dec = optmod.coords.convert_sca_to_sky(
     2043, 2043, tel_ra, tel_dec, pa, det_num)
+ra = ra[0]
+dec = dec[0]
 print('center of detector ra, dec: ', ra, dec)
 psf_cutout_size = 365
 det = "SCA{:02}".format(det_num)
