@@ -2,7 +2,7 @@
 environment to set on NERSC machines before running this script:
 export github_dir=/global/common/software/m4943/grizli0/
 export psf_grid_data_read=/dvs_ro/cfs/cdirs/m4943/grismsim/psf_grid_data
-export PYTHONPATH=$PYTHONPATH:$github_dir//grism_sim/py/:$github_dir/optical_model_tools/py/:$github_dir/psf_grids/py/
+export PYTHONPATH=$PYTHONPATH:$github_dir//grism_sim/py/:$github_dir/optical_model_tools/py/:$github_dir/psf_grids/py/:$github_dir/galacticus_sed_calculator/
 
 '''
 import psf_grid_utils as pgu  # needs to come after setting $psf_grid_data_read
