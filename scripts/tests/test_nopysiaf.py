@@ -7,7 +7,7 @@ export PYTHONPATH=$PYTHONPATH:$github_dir//grism_sim/py/:$github_dir/optical_mod
 '''
 import psf_grid_utils as pgu  # needs to come after setting $psf_grid_data_read
 import pysynphot as S
-import SEDfromSFH as sed
+from galacticus_sed_calculator import SEDCalculator as sed
 from astropy.cosmology import FlatLambdaCDM
 import astropy.units as u
 from grizli import fake_image
