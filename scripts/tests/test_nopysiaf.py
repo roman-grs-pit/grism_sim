@@ -205,6 +205,8 @@ phdu.header["INSTRUME"] = 'ROMAN   '
 phdu.header["FILTER"] = "f140w"
 phdu.header["EXPTIME"] = 141
 shp = cut_image.shape
+print('cut image shape: ', shp)
+print(shp[0]/2, shp[1]/2)
 phdu.header = iu.add_wcs(phdu, ra, dec, crpix2=shp[1]/2, crpix1=shp[0]/2,
                          crota2=pa, naxis1=shp[0], naxis2=shp[1])
 
