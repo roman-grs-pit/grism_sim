@@ -2,7 +2,6 @@ import argparse
 import json
 from pathlib import Path
 
-import numpy as np
 import polars as pl
 
 
@@ -41,8 +40,8 @@ def lookup_compact_rows(
             f"Suggested id-like columns: {suggestions['id_like'][:10]}"
         )
 
-    sims = sim if isinstance(sim, list) else [sim]
-    src_indices = src_index if isinstance(src_index, list) else [src_index]
+    sims = sim if isinstance(sim, (list, tuple)) else [sim]
+    src_indices = src_index if isinstance(src_index, (list, tuple)) else [src_index]
     if len(sims) != len(src_indices):
         raise ValueError("--sim and --src-index must have the same number of values")
 
