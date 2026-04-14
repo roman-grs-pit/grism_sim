@@ -9,7 +9,7 @@ from astropy.io import fits
 from pathlib import Path
 
 def fits_to_asdf(fn: str,
-                 outdir: str,
+                 outdir: str | None,
                  hdu: int = 5,
                  seed: int = 42,
                  static_args: list[str] | None =None) -> None:
@@ -20,8 +20,8 @@ def fits_to_asdf(fn: str,
     ----------
     fn: str
         Path to fits file to be converted.
-    outdir: str
-        Path to output directory
+    outdir: str | None
+        Path to output directory. If None, outdir is directory containing fits file.
     hdu: int, optional
         HDU number for romanisim extra counts (default: 5)
     seed: int, optional
@@ -29,6 +29,9 @@ def fits_to_asdf(fn: str,
     static_args: list, optional
         Any additional arguments to be passed to romanisim, in their complete string form.
     """
+
+    if outdir is None:
+        outdir = os.path.dirname(os.path.abspath(fn))
 
     with fits.open(fn) as f:
         ra, dec = f[0].header["WFICENRA"], f[0].header["WFICENDEC"] # pyright: ignore[reportAttributeAccessIssue]
@@ -106,7 +109,7 @@ def wrap_with_romanisim(outdir: str,
         static_args.extend(extra_static_args)
 
     # partially define fits_to_asdf
-    fits_to_asdf_partial = partial(fits_to_asdf, outdir=outdir, hdu=hdu, static_args=static_args)
+    fits_to_asdf_partial = partial(fits_to_asdf, outdir=None, hdu=hdu, static_args=static_args)
 
     # gather all files to be wrapped
     if recursive:
