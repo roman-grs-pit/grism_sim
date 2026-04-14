@@ -31,9 +31,9 @@ def fits_to_asdf(fn: str,
     """
 
     with fits.open(fn) as f:
-        ra, dec = f[0].header["WFICENRA"], f[0].header["WFICENDEC"]
-        pa = f[0].header["WFICENPA"] - 60
-        det_num = f[0].header["DETNUM"]
+        ra, dec = f[0].header["WFICENRA"], f[0].header["WFICENDEC"] # pyright: ignore[reportAttributeAccessIssue]
+        pa = f[0].header["WFICENPA"] - 60                           # pyright: ignore[reportAttributeAccessIssue]
+        det_num = f[0].header["DETNUM"]                             # pyright: ignore[reportAttributeAccessIssue]
 
     out_fn = os.path.join(outdir, Path(fn).stem + "_l2.asdf")
 
@@ -55,6 +55,7 @@ def fits_to_asdf(fn: str,
     subprocess.run([romanisim_make_image, *cmd], check=True)
 
 def wrap_with_romanisim(outdir: str,
+                        recursive: bool = False,
                         nprocesses: int = 80,
                         hdu: int = 5,
                         date: str = "2026-01-01T12:00:00.000",
@@ -68,6 +69,8 @@ def wrap_with_romanisim(outdir: str,
     ----------
     outdir: str
         Path to output directory
+    recursive: bool, optional
+        Recursively search subdirectories for files to wrap (default: False)
     nprocesses: int, optional
         Number of processes to use in python multiprocessing (default: 80)
     hdu: int, optional
@@ -105,8 +108,13 @@ def wrap_with_romanisim(outdir: str,
     # partially define fits_to_asdf
     fits_to_asdf_partial = partial(fits_to_asdf, outdir=outdir, hdu=hdu, static_args=static_args)
 
+    # gather all files to be wrapped
+    if recursive:
+        file_glob = glob.glob(os.path.join(outdir, "**/grism_*_detSCA??.fits"), recursive=True)
+    else:
+        file_glob = glob.glob(os.path.join(outdir, "grism_*_detSCA??.fits"))
+
     # send in all files to be wrapped
-    file_glob = glob.glob(os.path.join(outdir, "grism_*_detSCA??.fits"))
     with Pool(processes=nprocesses) as pool:
         pool.map(fits_to_asdf_partial, file_glob)
 
@@ -125,10 +133,12 @@ def main() -> None:
                         help="ASDF level (default: 2)")
     parser.add_argument("--extra-static-args", nargs="*", default=None,
                         help="Additional raw flags to append to romanisim call")
+    parser.add_argument("-r", action="store_true", help="Recursively search subdirectories for files to wrap")
 
     args = parser.parse_args()
     wrap_with_romanisim(
         outdir=args.outdir,
+        recursive=args.r,
         nprocesses=args.nprocesses,
         hdu=args.hdu,
         date=args.date,
